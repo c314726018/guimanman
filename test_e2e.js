@@ -233,9 +233,12 @@ const { chromium } = require("playwright-core");
   const editActive = await page.evaluate(() => document.getElementById("btnEdit").classList.contains("active-edit"));
   check("编辑按钮高亮", editActive, "");
   await page.click("#btnEdit");
+  await page.click("#btnPdf");
+  await page.waitForTimeout(200);
   const rselOpts = await page.locator("#selReportLang option").count();
   check("报告语言选择器（Auto+25）", rselOpts >= 26, String(rselOpts));
   await page.selectOption("#selReportTpl", "det");
+  await page.click("#btnPdf"); // 关闭弹层
 
   /* 11f. 拖拽撤销 + 手机端菜单 */
   await page.click("#btnEdit");
@@ -261,9 +264,9 @@ const { chromium } = require("playwright-core");
   await mobMenu.waitForTimeout(200);
   const menuOpen = await mobMenu.evaluate(() => {
     const m = document.getElementById("moreMenu");
-    return m.classList.contains("open") && m.querySelectorAll("button").length >= 8;
+    return m.classList.contains("open") && m.querySelectorAll("button").length >= 7;
   });
-  check("手机端菜单展开（≥8 项）", menuOpen, "");
+  check("手机端菜单展开（≥7 项）", menuOpen, "");
   const menuCovers = await mobMenu.evaluate(() => {
     const b = document.getElementById("btnSteps");
     return b.offsetHeight > 0; // 菜单内的步骤按钮可见
@@ -274,6 +277,12 @@ const { chromium } = require("playwright-core");
   /* 12. PDF 导出（stub window.open 验证调用） */
   await page.evaluate(() => { window.__pdfOpened = false; window.open = () => { window.__pdfOpened = true; return { document: { write() {}, close() {} }, print() {} }; }; });
   await page.click("#btnPdf");
+  await page.waitForTimeout(300);
+  const popOpen = await page.evaluate(() => document.getElementById("pdfPop").classList.contains("open"));
+  check("PDF 设置弹层展开", popOpen, "");
+  const rselOpts2 = await page.locator("#selReportLang option").count();
+  check("报告语言选择器在弹层内（Auto+25）", rselOpts2 >= 26, String(rselOpts2));
+  await page.click("#btnGenPdf");
   await page.waitForTimeout(2000);
   const pdfOpened = await page.evaluate(() => window.__pdfOpened);
   check("PDF 报告生成并打开", pdfOpened, "");

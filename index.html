@@ -107,6 +107,11 @@
 
   #btnMore { display:none; }
   #moreMenu { display:contents; }
+  #pdfPop { display:none; position:fixed; top:64px; right:16px; z-index:70; background:#fff; border:1px solid #eceef0;
+            border-radius:14px; box-shadow:0 8px 32px rgba(0,0,0,.16); padding:14px; flex-direction:column; gap:10px; min-width:200px; }
+  #pdfPop.open { display:flex; }
+  #pdfPop select { width:100%; }
+  #pdfPop .btn { width:100%; }
 
   /* 手机端 */
   @media (max-width: 900px) {
@@ -143,14 +148,11 @@
   <div id="moreMenu">
     <button class="btn btn-ghost" id="btnSample">载入示例</button>
     <button class="btn btn-ghost" id="btnImport">导入 CSV/Excel</button>
-    <button class="btn btn-ghost" id="btnLogo">Logo</button>
     <button class="btn btn-ghost" id="btnSavePlan">保存方案</button>
     <button class="btn btn-ghost" id="btnShare">分享链接</button>
     <button class="btn btn-ghost" id="btnSteps">装载步骤</button>
     <button class="btn btn-ghost" id="btnPdf">导出 PDF</button>
     <button class="btn btn-ghost" id="btnShot">导出截图</button>
-    <select id="selReportLang" title="Report language"></select>
-    <select id="selReportTpl" title="Template"><option value="std">A</option><option value="det">A+</option></select>
   </div>
   <button class="btn btn-ghost" id="btnMore">⚙</button>
   <button class="btn btn-ghost" id="btnUndo" style="display:none">↩</button>
@@ -158,6 +160,12 @@
   <button class="btn btn-primary" id="btnCalc">开始计算</button>
   <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.txt" style="display:none">
   <input type="file" id="logoInput" accept="image/*" style="display:none">
+  <div id="pdfPop">
+    <label class="f"><span>🌐</span><select id="selReportLang"></select></label>
+    <label class="f"><span>A</span><select id="selReportTpl"><option value="std">A</option><option value="det">A+</option></select></label>
+    <button class="btn btn-ghost" id="btnLogo">Logo</button>
+    <button class="btn btn-primary" id="btnGenPdf">报告</button>
+  </div>
 </header>
 
 <div class="main">
@@ -912,6 +920,8 @@ function applyI18n() {
   document.getElementById("setsLb").textContent = t().setsLb;
   document.getElementById("perSetLb").textContent = t().perSetLb;
   document.getElementById("btnEdit").textContent = "✎ " + t().editMode;
+  document.getElementById("btnGenPdf").textContent = "📄 " + t().rTitle;
+  updateLogoBtn();
   document.getElementById("palletModeLb").textContent = t().palletMode;
   document.getElementById("paLlb").textContent = t().palletLl;
   document.getElementById("paWlb").textContent = t().palletWl;
@@ -1180,10 +1190,15 @@ function renderPlanSel() {
 }
 
 /* ============ Logo 上传 ============ */
+function updateLogoBtn() {
+  const b = document.getElementById("btnLogo");
+  if (b) b.textContent = t().logoBtn + (localStorage.getItem("zc_logo") ? " ✓" : "");
+}
 function handleLogo(file) {
   const reader = new FileReader();
   reader.onload = e => {
     localStorage.setItem("zc_logo", e.target.result);
+    updateLogoBtn();
     toast(t().planSaved);
   };
   reader.readAsDataURL(file);
@@ -1434,6 +1449,20 @@ function initUI() {
   document.getElementById("btnLogo").onclick = () => document.getElementById("logoInput").click();
   const rsel = document.getElementById("selReportLang");
   rsel.innerHTML = '<option value="auto">Auto</option>' + LANGS.map(x => '<option value="' + x[0] + '">' + x[1] + '</option>').join("");
+  document.getElementById("btnPdf").onclick = e => {
+    e.stopPropagation();
+    document.getElementById("pdfPop").classList.toggle("open");
+  };
+  document.getElementById("btnGenPdf").onclick = () => {
+    document.getElementById("pdfPop").classList.remove("open");
+    exportPdf();
+  };
+  document.addEventListener("click", e => {
+    const pop = document.getElementById("pdfPop");
+    if (pop.classList.contains("open") && !pop.contains(e.target) && e.target.id !== "btnPdf" && !e.target.closest("#btnPdf"))
+      pop.classList.remove("open");
+  });
+  updateLogoBtn();
   document.getElementById("logoInput").onchange = e => { if (e.target.files.length) handleLogo(e.target.files[0]); e.target.value = ""; };
   document.getElementById("planSel").onchange = e => { if (e.target.value !== "") loadPlan(+e.target.value); };
   document.getElementById("btnLoadPlan").onclick = () => { const v = +document.getElementById("planSel").value; if (getPlans()[v]) loadPlan(v); };
