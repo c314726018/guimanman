@@ -154,6 +154,40 @@ console.log("[冷柜语义] 机组预留 + 门端限高 + 超载");
   check("单件超额定载重 → stuck", r4.containers.length === 0 && r4.stuck.length === 1, "");
 }
 
+/* 8c. 网格铺排快速通道 */
+console.log("[网格铺排] 同规格大货量直排");
+{
+  const C40 = { l: 1203.1, w: 235.2, h: 269.1, payload: 26500 };
+  const g = [{ name: "卷", l: 60, w: 30, h: 30, qty: 3812, kg: 2.45, stack: 20, color: "#fff" },
+             { name: "卷2", l: 60, w: 30, h: 30, qty: 1028, kg: 2.45, stack: 20, color: "#fff" }];
+  const t0 = Date.now();
+  const r = PackLib.packAll(g, C40);
+  const dt = Date.now() - t0;
+  const total = r.containers.reduce((s, c) => s + c.placed.length, 0);
+  check("4840 件同规格 < 1s（网格直出）", dt < 1000, dt + "ms");
+  check("全部装入", total === 4840, total + "");
+  check("首柜利用率 ≥ 75%", r.containers[0] && r.containers[0].placed.reduce((s, p) => s + p.L * p.W * p.H, 0) / 1e6 / (C40.l * C40.w * C40.h / 1e6) >= 0.75,
+    (r.containers[0].placed.reduce((s, p) => s + p.L * p.W * p.H, 0) / 1e6 / (C40.l * C40.w * C40.h / 1e6) * 100).toFixed(1) + "%");
+  // 种子柜合规：无重叠、不出界
+  const last = r.containers[r.containers.length - 1].placed;
+  let ov = 0;
+  for (let i = 0; i < last.length; i++) for (let j = i + 1; j < last.length; j++) {
+    const a = last[i], b = last[j];
+    if (a.x < b.x + b.L - 0.5 && b.x < a.x + a.L - 0.5 && a.y < b.y + b.W - 0.5 && b.y < a.y + a.W - 0.5 &&
+        a.z < b.z + b.H - 0.5 && b.z < a.z + a.H - 0.5) ov++;
+  }
+  check("末柜无重叠", ov === 0, ov + " 处");
+  check("末柜全部在柜内", last.every(p => p.x + p.L <= C40.l + 0.5 && p.y + p.W <= C40.w + 0.5 && p.z + p.H <= C40.h + 0.5), "");
+  // 条带补边：主区放满后剩余宽度补旋转排
+  const C2 = { l: 200, w: 107, h: 100, payload: 100000 };
+  const g2 = [{ name: "板", l: 25, w: 20, h: 10, qty: 200, kg: 1, stack: 99, color: "#fff" }];
+  const r2 = PackLib.packAll(g2, C2);
+  const hasStrip = r2.containers[0].placed.some(p => p.y >= 80);
+  check("条带补边生效（y≥80 区域有放置）", hasStrip, "");
+  check("200 件全部装入 1 柜", r2.containers.length === 1 && r2.containers[0].placed.length === 200,
+    r2.containers.length + " 柜 " + r2.containers.reduce((s, c) => s + c.placed.length, 0) + " 件");
+}
+
 /* 9. 性能：新字段不拖慢 */
 console.log("[性能] 1000 件多策略");
 {

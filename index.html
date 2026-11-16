@@ -666,7 +666,8 @@ function calc(silent) {
                        w: +document.getElementById("paW").value || 110,
                        h: +document.getElementById("paH").value || 180,
                        payload: +document.getElementById("paP").value || 1000 };
-        packGoods = PackLib.packPallets(goods, spec).pallets;
+        const aggP = PackLib.aggregate(goods, spec); // 大货量按托盘限高成捆
+        packGoods = PackLib.packPallets(aggP.goods, spec).pallets;
       }
       packResults = PackLib.packAll(packGoods, c, { gap });
       packResults.agg = agg;
