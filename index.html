@@ -1220,6 +1220,8 @@ function onCanvasUp() {
   dragBox = null; dragMesh = null;
   controls.enabled = !editMode;
   renderScene();
+  renderResults(); // 手动移动后刷新偏载/重量分布
+  if (document.getElementById("stepsPanel").classList.contains("open")) buildSteps();
 }
 
 function validMove(box, nx, ny, c) {
@@ -1265,6 +1267,9 @@ function encodeState() {
   const st = {
     v: 2, c: key, u: unit, g: serializeGoods(),
     gap: +document.getElementById("advGap").value || 0,
+    rf: +document.getElementById("advReefer").value || 0,
+    dh: +document.getElementById("advDoor").value || 0,
+    st: Math.max(1, +document.getElementById("advSets").value || 1),
     pal: { on: document.getElementById("palletChk").checked,
            l: +document.getElementById("paL").value, w: +document.getElementById("paW").value,
            h: +document.getElementById("paH").value, p: +document.getElementById("paP").value },
@@ -1285,6 +1290,9 @@ function decodeState(str) {
   goods = deserializeGoods(st.g);
   goodsSeq = goods.length;
   document.getElementById("advGap").value = st.gap || 0;
+  document.getElementById("advReefer").value = st.rf || 0;
+  document.getElementById("advDoor").value = st.dh || 0;
+  document.getElementById("advSets").value = st.st || 1;
   if (st.pal) {
     document.getElementById("palletChk").checked = !!st.pal.on;
     if (st.pal.l) { document.getElementById("paL").value = st.pal.l; document.getElementById("paW").value = st.pal.w;
