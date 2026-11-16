@@ -43,5 +43,5 @@ bash audit_guimanman.sh 2>&1 | tail -2 | tee -a $RESULT
 
 echo ""
 echo "========== 六层体检结束 =========="
-grep -c "❌" $RESULT | xargs -I{} echo "❌ 总失败行数: {}" | tee -a $RESULT
+N_FAIL=$(grep "❌" $RESULT | grep -vc "失败 0" || true); echo "❌ 真实失败行数: $N_FAIL" | tee -a $RESULT
 cat $RESULT
