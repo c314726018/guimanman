@@ -95,7 +95,8 @@
   .container-tabs { position:absolute; top:12px; left:14px; z-index:10; display:flex; gap:8px; flex-wrap:wrap; max-width:70%; }
   .ctab { background:#fff; border:1px solid #dcdfe3; border-radius:999px; padding:6px 14px; font-size:12px; cursor:pointer; font-weight:500; }
   .ctab.active { background:#1a9a5c; color:#fff; border-color:#1a9a5c; }
-  .legend { position:absolute; bottom:12px; left:14px; z-index:10; background:rgba(255,255,255,.95); border-radius:12px; padding:10px 14px; font-size:12px; max-width:320px; box-shadow:0 4px 16px rgba(0,0,0,.1); }
+  .legend { position:absolute; bottom:12px; left:14px; z-index:10; background:rgba(255,255,255,.95); border-radius:12px; padding:10px 14px; font-size:12px; max-width:320px; max-height:200px; overflow-y:auto; box-shadow:0 4px 16px rgba(0,0,0,.1); }
+  .legend div { display:flex; align-items:center; gap:6px; margin:3px 0; min-width:0; }
   .legend div { display:flex; align-items:center; gap:6px; margin:3px 0; }
   .toast { position:absolute; top:56px; left:50%; transform:translateX(-50%); background:#313131; color:#fff; padding:9px 20px; border-radius:999px; font-size:13px; z-index:20; display:none; max-width:80%; box-shadow:0 4px 16px rgba(0,0,0,.25); }
   .empty-tip { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#9aa1a9; font-size:15px; flex-direction:column; gap:8px; }
@@ -933,9 +934,12 @@ function renderLegend(placed) {
     if (!seen.has(p.gi)) seen.set(p.gi, { color: p.color, name: p.name, n: 1 });
     else seen.get(p.gi).n++;
   });
-  el.innerHTML = [...seen.values()].map(v =>
-    '<div><span class="dot" style="background:' + v.color + '"></span>' + esc(v.name) + ' × ' + v.n + '</div>'
-  ).join("");
+  const entries = [...seen.values()];
+  const MAXL = 6; // 大货量成捆时货品条目可达数百，必须截断
+  const shown = entries.slice(0, MAXL);
+  el.innerHTML = shown.map(v =>
+    '<div><span class="dot" style="background:' + v.color + '"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(v.name) + '</span> × ' + v.n + '</div>'
+  ).join("") + (entries.length > MAXL ? '<div style="color:#8a9099;font-size:11px">… +' + (entries.length - MAXL) + '</div>' : "");
   el.style.display = "block";
 }
 
