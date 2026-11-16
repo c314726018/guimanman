@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>柜满满 — 免费装柜计算器｜集装箱装载优化</title>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="柜满满 GuiManMan">
+<meta property="og:title" content="柜满满 — 免费装柜计算器｜集装箱装载优化">
+<meta property="og:description" content="输入货物尺寸，自动生成集装箱 3D 装载方案。堆叠规则、重量平衡、Excel 导入、分享链接。免费 25 语言。Free 3D container load planner.">
+<meta property="og:image" content="https://c314726018.github.io/guimanman/og.png">
+<meta property="og:url" content="https://c314726018.github.io/guimanman/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="柜满满 GuiManMan — 免费装柜计算器">
+<meta name="twitter:description" content="3D 装柜方案 · 堆叠规则 · 重量平衡 · 免费无需注册">
+<meta name="twitter:image" content="https://c314726018.github.io/guimanman/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
 <style>
   /* 公告条（可关闭，类即梦顶部样式） */
@@ -91,6 +101,10 @@
   .empty-tip { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#9aa1a9; font-size:15px; flex-direction:column; gap:8px; }
   .empty-tip .big { font-size:44px; }
   .drag-hint { position:absolute; bottom:12px; right:14px; z-index:9; color:#8a9099; font-size:11px; background:rgba(255,255,255,.9); padding:5px 12px; border-radius:999px; pointer-events:none; }
+  #editTools { display:none; position:absolute; top:52px; left:50%; transform:translateX(-50%); z-index:14; background:#fff; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.15); padding:6px; gap:4px; }
+  #editTools.show { display:flex; }
+  #editTools button { width:36px; height:36px; border:1px solid #eceef0; border-radius:9px; background:#f6f7f8; font-size:16px; cursor:pointer; color:#313131; }
+  #editTools button:hover { background:#e8f6ee; border-color:#1a9a5c; }
 
   /* 装载步骤面板 */
   .steps-panel { position:absolute; top:12px; right:14px; bottom:12px; width:320px; z-index:15; background:#fff; border-radius:14px; box-shadow:0 8px 32px rgba(0,0,0,.16); padding:16px; overflow-y:auto; display:none; }
@@ -170,6 +184,9 @@
   </div>
   <button class="btn btn-ghost" id="btnMore">⚙</button>
   <button class="btn btn-ghost" id="btnUndo" style="display:none">↩</button>
+  <button class="btn btn-ghost" id="btnRedo" style="display:none">↪</button>
+  
+  
   <button class="btn btn-ghost" id="btnEdit">✎</button>
   <button class="btn btn-primary" id="btnCalc">开始计算</button>
   <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.txt" style="display:none">
@@ -280,6 +297,11 @@
     <div class="legend" id="legend" style="display:none"></div>
     <div class="toast" id="toast"></div>
     <div class="drag-hint" id="dragHint"></div>
+    <div id="editTools">
+      <button id="etRotate" title="旋转 90°">⟳</button>
+      <button id="etUp" title="上移一层">⤒</button>
+      <button id="etDown" title="下移一层">⤓</button>
+    </div>
     <div class="steps-panel" id="stepsPanel">
       <h4><span id="stepsTitle">装载步骤</span><button class="close-x" id="stepsClose">✕</button></h4>
       <div id="stepsBody"></div>
@@ -716,7 +738,9 @@ function calc(silent) {
       renderScene();
       renderResults();
       if (document.getElementById("stepsPanel").classList.contains("open")) buildSteps();
-      undoStack = []; // 新计算重置撤销栈
+      undoStack = []; redoStack = [];
+      selectedBox = null;
+      updateEditTools();
       updateUndoBtn();
       if (!silent) toast(t().tDone);
     } catch (e) {
@@ -1251,15 +1275,129 @@ function handleLogo(file) {
 
 /* ============ 编辑模式：拖拽微调 ============ */
 let editMode = false, dragBox = null, dragMesh = null;
-let undoStack = []; // 拖拽撤销栈：{box, x, y}
+let undoStack = [], redoStack = [];
+let selectedBox = null, selectedMesh = null; // 拖拽撤销栈：{box, before:{x,y,L,W,z?}, after:{...}}
 const raycaster = new THREE.Raycaster(), dragPtr = new THREE.Vector2();
 const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
+function applyState(st) {
+  selectedBox.x = st.x; selectedBox.y = st.y; selectedBox.L = st.L; selectedBox.W = st.W;
+  recomputeLoads();
+  renderScene(); renderResults();
+  if (document.getElementById("stepsPanel").classList.contains("open")) buildSteps();
+}
+function undoDrag() {
+  const s = undoStack.pop();
+  if (!s) return;
+  selectedBox = s.box;
+  redoStack.push({ box: s.box, before: s.after, after: s.before });
+  applyState(s.before);
+  updateUndoBtn();
+}
+function redoDrag() {
+  const s = redoStack.pop();
+  if (!s) return;
+  selectedBox = s.box;
+  undoStack.push({ box: s.box, before: s.before, after: s.after });
+  applyState(s.after);
+  updateUndoBtn();
+}
+function pushUndo(box, before) {
+  undoStack.push({ box, before, after: { x: box.x, y: box.y, L: box.L, W: box.W } });
+  if (undoStack.length > 50) undoStack.shift();
+  redoStack = [];
+  updateUndoBtn();
+}
+function recomputeLoads() {
+  if (!packResults) return;
+  const cur = packResults.containers[currentContainerIdx].placed;
+  cur.forEach(p => p.load = 0);
+  const sorted = [...cur].sort((a, b) => a.z - b.z);
+  for (const b of sorted) {
+    for (const q of cur) {
+      if (q === b || Math.abs(q.z + q.H - b.z) > 0.3) continue;
+      const ox = Math.min(b.x + b.L, q.x + q.L) - Math.max(b.x, q.x);
+      const oy = Math.min(b.y + b.W, q.y + q.W) - Math.max(b.y, q.y);
+      if (ox > 0.5 && oy > 0.5) q.load = (q.load || 0) + b.kg;
+    }
+  }
+}
+function updateEditTools() {
+  document.getElementById("editTools").classList.toggle("show", editMode && !!selectedBox);
+}
+function selRotate() {
+  if (!selectedBox) return;
+  const g = goods[selectedBox.gi];
+  if (g.upright || g.cylinder) { toast("⛔ " + t().upYes); return; }
+  const before = { x: selectedBox.x, y: selectedBox.y, L: selectedBox.L, W: selectedBox.W };
+  const nL = selectedBox.W, nW = selectedBox.L;
+  const c = getContainer();
+  if (selectedBox.x + nL > c.l + 0.01 || selectedBox.y + nW > c.w + 0.01) { toast(t().editedBad); return; }
+  const cur = packResults.containers[currentContainerIdx].placed;
+  for (const p of cur) {
+    if (p === selectedBox) continue;
+    if (selectedBox.x < p.x + p.L && p.x < selectedBox.x + nL && selectedBox.y < p.y + p.W && p.y < selectedBox.y + nW &&
+        selectedBox.z < p.z + p.H && p.z < selectedBox.z + selectedBox.H) { toast(t().editedBad); return; }
+  }
+  pushUndo(selectedBox, before);
+  selectedBox.L = nL; selectedBox.W = nW;
+  recomputeLoads();
+  renderScene(); renderResults();
+  if (document.getElementById("stepsPanel").classList.contains("open")) buildSteps();
+}
+function selLift(dir) { // dir: +1 上移一层, -1 下移一层
+  if (!selectedBox) return;
+  const cur = packResults.containers[currentContainerIdx].placed;
+  const tops = new Set([0]);
+  for (const p of cur) {
+    if (p === selectedBox) continue;
+    const ox = Math.min(selectedBox.x + selectedBox.L, p.x + p.L) - Math.max(selectedBox.x, p.x);
+    const oy = Math.min(selectedBox.y + selectedBox.W, p.y + p.W) - Math.max(selectedBox.y, p.y);
+    if (ox > 0.5 && oy > 0.5) tops.add(Math.round((p.z + p.H) * 10) / 10);
+  }
+  const levels = [...tops].sort((a, b) => a - b);
+  const curZ = Math.round(selectedBox.z * 10) / 10;
+  let target = null;
+  if (dir > 0) target = levels.find(l => l > curZ + 0.05);
+  else { const below = levels.filter(l => l < curZ - 0.05); target = below.length ? below[below.length - 1] : null; }
+  if (target === null) { toast(t().editedBad); return; }
+  const before = { x: selectedBox.x, y: selectedBox.y, L: selectedBox.L, W: selectedBox.W, z: selectedBox.z };
+  const oldZ = selectedBox.z;
+  selectedBox.z = target;
+  let collide = false;
+  for (const p of cur) {
+    if (p === selectedBox) continue;
+    if (selectedBox.x < p.x + p.L && p.x < selectedBox.x + selectedBox.L &&
+        selectedBox.y < p.y + p.W && p.y < selectedBox.y + selectedBox.W &&
+        selectedBox.z < p.z + p.H && p.z < selectedBox.z + selectedBox.H) { collide = true; break; }
+  }
+  let supportOk = target <= 0.3;
+  if (!supportOk) {
+    let area = 0;
+    for (const p of cur) {
+      if (p === selectedBox || Math.abs(p.z + p.H - target) > 0.3) continue;
+      const ox = Math.min(selectedBox.x + selectedBox.L, p.x + p.L) - Math.max(selectedBox.x, p.x);
+      const oy = Math.min(selectedBox.y + selectedBox.W, p.y + p.W) - Math.max(selectedBox.y, p.y);
+      if (ox > 0.5 && oy > 0.5) area += ox * oy;
+    }
+    supportOk = area >= selectedBox.L * selectedBox.W * (goods[selectedBox.gi].overhang || 0.7);
+  }
+  if (collide || !supportOk) {
+    selectedBox.z = oldZ;
+    toast(t().editedBad);
+    return;
+  }
+  pushUndo(selectedBox, before);
+  recomputeLoads();
+  renderScene(); renderResults();
+  if (document.getElementById("stepsPanel").classList.contains("open")) buildSteps();
+}
 function toggleEdit() {
   editMode = !editMode;
   const b = document.getElementById("btnEdit");
   b.classList.toggle("active-edit", editMode);
   controls.enabled = !editMode;
+  if (!editMode) { selectedBox = null; document.getElementById("editTools").classList.remove("show"); }
   updateUndoBtn();
   toast(t().editMode);
 }
@@ -1277,9 +1415,11 @@ function onCanvasDown(e) {
   const meshes = [];
   containerMeshes.forEach(m => { if (m.isMesh && m.userData.box) meshes.push(m); });
   const hits = raycaster.intersectObjects(meshes);
-  if (!hits.length) return;
+  if (!hits.length) { selectedBox = null; updateEditTools(); return; }
   dragMesh = hits[0].object;
   dragBox = dragMesh.userData.box;
+  selectedBox = dragBox;
+  updateEditTools();
   dragPlane.set(new THREE.Vector3(0, 1, 0), -(dragBox.z + dragBox.H / 2));
   controls.enabled = false;
   try { renderer.domElement.setPointerCapture(e.pointerId); } catch (err) {}
@@ -1301,16 +1441,15 @@ function onCanvasUp() {
   const nx = dragMesh.position.x - dragBox.L / 2;
   const ny = dragMesh.position.z - dragBox.W / 2;
   if (validMove(dragBox, nx, ny, c)) {
-    undoStack.push({ box: dragBox, x: dragBox.x, y: dragBox.y });
-    if (undoStack.length > 50) undoStack.shift();
+    pushUndo(dragBox, { x: dragBox.x, y: dragBox.y, L: dragBox.L, W: dragBox.W });
     dragBox.x = nx; dragBox.y = ny;
-    updateUndoBtn();
     toast(t().editedOK);
   } else toast(t().editedBad);
   dragBox = null; dragMesh = null;
   controls.enabled = !editMode;
   renderScene();
-  renderResults(); // 手动移动后刷新偏载/重量分布
+  renderResults();
+  updateEditTools();
   if (document.getElementById("stepsPanel").classList.contains("open")) buildSteps();
 }
 
@@ -1338,6 +1477,7 @@ function validMove(box, nx, ny, c) {
 
 function updateUndoBtn() {
   document.getElementById("btnUndo").style.display = (editMode && undoStack.length) ? "inline-block" : "none";
+  document.getElementById("btnRedo").style.display = (editMode && redoStack.length) ? "inline-block" : "none";
 }
 function undoDrag() {
   const s = undoStack.pop();
@@ -1474,7 +1614,11 @@ function initUI() {
   document.getElementById("btnPdf").onclick = exportPdf;
   document.getElementById("btnEdit").onclick = toggleEdit;
   document.getElementById("btnEdit").onclick = toggleEdit;
-  document.getElementById("btnUndo").onclick = undoDrag;
+  document.getElementById("btnUndo").onclick = () => { if (undoStack.length) undoDrag(); };
+  document.getElementById("btnRedo").onclick = () => { if (redoStack.length) redoDrag(); };
+  document.getElementById("etRotate").onclick = selRotate;
+  document.getElementById("etUp").onclick = () => selLift(1);
+  document.getElementById("etDown").onclick = () => selLift(-1);
   document.getElementById("btnMore").onclick = e => {
     e.stopPropagation();
     document.getElementById("moreMenu").classList.toggle("open");
@@ -1485,10 +1629,10 @@ function initUI() {
       menu.classList.remove("open");
   });
   document.addEventListener("keydown", e => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && editMode && undoStack.length) {
-      e.preventDefault();
-      undoDrag();
-    }
+    if (!((e.ctrlKey || e.metaKey) && editMode)) return;
+    const k = e.key.toLowerCase();
+    if (k === "z" && !e.shiftKey && undoStack.length) { e.preventDefault(); undoDrag(); }
+    else if ((k === "z" && e.shiftKey) || k === "y") { if (redoStack.length) { e.preventDefault(); redoDrag(); } }
   });
   document.getElementById("btnSavePlan").onclick = savePlan;
   document.getElementById("btnLogo").onclick = () => document.getElementById("logoInput").click();

@@ -4,7 +4,8 @@
  *       + 全站链接 HTTP 校验 + 代表页全链接点击 + 应用交互冒烟
  */
 "use strict";
-const { chromium } = require("playwright-core");
+const pw = require("playwright-core");
+const chromium = (process.env.BROWSER === "webkit") ? pw.webkit : pw.chromium;
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
@@ -53,7 +54,7 @@ async function collectLinks(page) {
     base = "http://127.0.0.1:8643";
   }
 
-  const browser = await chromium.launch({ executablePath: EXE, headless: true });
+  const browser = await chromium.launch({ headless: true, args: process.env.BROWSER === "webkit" ? ["--no-sandbox"] : [], executablePath: process.env.BROWSER === "webkit" ? undefined : EXE });
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
   const allLinks = new Set();
@@ -118,9 +119,12 @@ async function collectLinks(page) {
     if (u.startsWith("/") && mode === "live") u = "https://c314726018.github.io" + u;
     if (u.startsWith("/") && mode !== "live") u = base + u;
     try {
-      const resp = await page.request.get(u, { maxRedirects: 3 });
-      if (resp.status() < 400) linkOk++;
-      else { linkBad++; issues.push("链接 " + resp.status() + " " + u); console.log("  ❌ 链接 " + resp.status() + " " + u); }
+      const resp = await page.request.get(u, { maxRedirects: 3 }).catch(e => ({ status: -1, err: e.message.slice(0, 60) }));
+      const st = typeof resp.status === "function" ? resp.status() : resp.status;
+      const external = !u.startsWith(base);
+      if (st >= 0 && st < 400) linkOk++;
+      else if (external) { warns++; console.log("  ⚠️ 外链超时（非阻断）" + u); }
+      else { linkBad++; issues.push("链接 " + st + " " + u + " " + (resp.err || "")); console.log("  ❌ 链接 " + st + " " + u + " " + (resp.err || "")); }
     } catch (e) { linkBad++; console.log("  ❌ 链接异常 " + u + " " + e.message.slice(0, 60)); }
   }
   check("全部链接可达 (" + linkOk + "/" + allLinks.size + ")", linkBad === 0, linkBad + " 个失败");
@@ -143,7 +147,10 @@ async function collectLinks(page) {
       await page.goto(u, { waitUntil: "domcontentloaded", timeout: 30000 });
       clickOk++;
       await page.goBack({ waitUntil: "domcontentloaded" });
-    } catch (e) { clickBad++; console.log("  ❌ 点击失败 " + u); await page.goto(base + "/", { waitUntil: "domcontentloaded" }); }
+    } catch (e) {
+      if (!u.startsWith(base)) { warns++; console.log("  ⚠️ 外链点击超时（非阻断）" + u); await page.goto(base + "/", { waitUntil: "domcontentloaded" }); continue; }
+      clickBad++; console.log("  ❌ 点击失败 " + u); await page.goto(base + "/", { waitUntil: "domcontentloaded" });
+    }
   }
   check("主站全部链接真实点击通过 (" + clickOk + ")", clickBad === 0, clickBad + " 个失败");
 

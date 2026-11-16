@@ -229,6 +229,16 @@ for (const p of ALL_PAGES) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${BRAND} — ${p.title}</title>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="${BRAND}">
+<meta property="og:title" content="${BRAND} — ${p.title}">
+<meta property="og:description" content="${p.desc}">
+<meta property="og:image" content="${BASE}/og.png">
+<meta property="og:url" content="${BASE}/seo/${p.file}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${BRAND} — ${p.title}">
+<meta name="twitter:description" content="${p.desc}">
+<meta name="twitter:image" content="${BASE}/og.png">
 <meta name="description" content="${p.desc}">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
 ${hreflang}
@@ -265,6 +275,145 @@ const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${urls.join("\n")}
 </urlset>`;
+
+/* ============ 内容营销页（文章） ============ */
+const CONTENTS = [
+  {
+    file: "guide-40hc.html", lang: "zh",
+    title: "40HC 集装箱能装多少立方米？装柜计算完全指南",
+    desc: "40HC 内容积 76.4 m³ 到底能装多少货？内尺寸、计算公式、真实利用率数据与常见误区，一文讲清。附免费 3D 装柜计算工具。",
+    cta: "用 3D 计算器算你的柜（免费）",
+    body: `
+<p><strong>直接答案：</strong>40HC 高柜的内容积是 <strong>76.4 m³</strong>（内尺寸 12.03 × 2.35 × 2.69 m），额定载重 26.5 吨。但实际能装进去的货物，通常只有 55–65 m³——取决于你怎么码放。</p>
+<h2>常见柜型内尺寸速查表</h2>
+<table><tr><th>柜型</th><th>内尺寸 (cm)</th><th>容积</th><th>载重</th></tr>
+<tr><td>20GP</td><td>589.8×235.2×239.1</td><td>33.2 m³</td><td>28 吨</td></tr>
+<tr><td>40GP</td><td>1203.1×235.2×239.1</td><td>67.7 m³</td><td>26.5 吨</td></tr>
+<tr><td>40HC</td><td>1203.1×235.2×269.1</td><td>76.4 m³</td><td>26.5 吨</td></tr>
+<tr><td>45HC</td><td>1351.3×235.2×269.1</td><td>85.7 m³</td><td>27 吨</td></tr></table>
+<h2>为什么实际装不到 76.4 m³？</h2>
+<p>三个数学上无法回避的损耗：① <strong>边角缝隙</strong>——纸箱 60cm 宽，柜宽 235cm，一排 3 个剩 55cm，再塞别的货才可能利用；② <strong>堆叠限制</strong>——许多货不能压，高度利用打折；③ <strong>装卸通道</strong>——码头要求留出操作空间。</p>
+<p>经验数据：随手乱装约 55–65% 利用率；用工具规划后可到 <strong>75–85%</strong>。从 65% 提到 80%，一个 40HC 就能多装 11 m³——可能省下一个柜的运费。</p>
+<h2>手算公式（粗估）</h2>
+<p>可装件数 ≈ 每层件数 × 层数。每层件数 = ⌊柜长/箱长⌋ × ⌊柜宽/箱宽⌋（可再叠加旋转朝向），层数 = ⌊柜内高/箱高⌋。例如 60×40×50cm 的箱子装 40HC：每层 20×5=100 件（考虑旋转可到 110+），5 层 ≈ 500–550 件。</p>
+<p>但真实约束更多：堆叠层数限制、禁止立放的货、偏载、承重……手算只能估个范围。<strong>精确方案建议用 3D 装柜计算器模拟</strong>，几秒钟出结果还能看到每个箱子摆哪。</p>
+<h2>常见误区</h2>
+<p>① 只看容积不看载重——泡沫货先超体积，金属货先超重量；② 忽略包装尺寸是"外尺寸"；③ 忘了集装箱内壁有约 2–5cm 的公差；④ 偏载超过 60% 可能被拒装或罚款。</p>
+`,
+  },
+  {
+    file: "guide-40hc-en.html", lang: "en",
+    title: "How much fits in a 40HC container? Complete loading guide",
+    desc: "A 40HC holds 76.4 m³ — but how much of YOUR cargo fits? Internal dimensions, the math, real utilization numbers and common mistakes. Free 3D loading calculator included.",
+    cta: "Plan your container in 3D — free",
+    body: `
+<p><strong>Short answer:</strong> a 40HC high-cube container offers <strong>76.4 m³</strong> of internal volume (12.03 × 2.35 × 2.69 m) with a 26,500 kg payload. Realistically you will fit 55–65 m³ of cargo — depending on how well you plan.</p>
+<h2>Internal dimensions cheat sheet</h2>
+<table><tr><th>Type</th><th>Internal (cm)</th><th>Volume</th><th>Payload</th></tr>
+<tr><td>20GP</td><td>589.8×235.2×239.1</td><td>33.2 m³</td><td>28 t</td></tr>
+<tr><td>40GP</td><td>1203.1×235.2×239.1</td><td>67.7 m³</td><td>26.5 t</td></tr>
+<tr><td>40HC</td><td>1203.1×235.2×269.1</td><td>76.4 m³</td><td>26.5 t</td></tr>
+<tr><td>45HC</td><td>1351.3×235.2×269.1</td><td>85.7 m³</td><td>27 t</td></tr></table>
+<h2>Why can't you use all 76.4 m³?</h2>
+<p>Three unavoidable losses: ① <strong>edge gaps</strong> — a 60cm-wide box in a 235cm-wide container leaves 55cm strips that only smaller items can fill; ② <strong>stacking limits</strong> — crushable goods cap your height usage; ③ <strong>handling clearance</strong> at the port.</p>
+<p>Rule of thumb: naive loading reaches 55–65%; planned loading reaches <strong>75–85%</strong>. Going from 65% to 80% on one 40HC = about 11 m³ extra — potentially one full container of freight saved.</p>
+<h2>Quick manual estimate</h2>
+<p>Units ≈ per-layer count × layers. Per layer = ⌊length/box L⌋ × ⌊width/box W⌋ (plus rotated orientation), layers = ⌊height/box H⌋. For 60×40×50cm boxes in a 40HC: 20×5 = 100 per layer, 5 layers ≈ 500–550 units.</p>
+<p>Real constraints (stack limits, this-way-up items, weight balance, floor-loading) make precise planning a job for a <strong>3D load planner</strong> — seconds to run, shows exactly where every box goes.</p>
+<h2>Common mistakes</h2>
+<p>① Volume-only thinking — foam cargo hits the volume limit, steel hits the weight limit; ② using inner instead of outer box dimensions; ③ forgetting the 2–5cm container wall tolerance; ④ weight distribution beyond 60/40 can get your container rejected.</p>
+`,
+  },
+  {
+    file: "tips-freight.html", lang: "zh",
+    title: "海运装柜省运费的 7 个实用技巧",
+    desc: "从装载率、打托策略到偏载控制——7 个立刻能用的装柜省运费技巧，附免费 3D 装柜工具。",
+    cta: "免费规划你的下一柜",
+    body: `
+<p>海运费按柜计价，一个柜几万块。<strong>装载率每提高 10%，等于白捡十分之一的运费</strong>。以下 7 个技巧按见效快慢排序。</p>
+<h2>1. 先规划再装货</h2>
+<p>用 3D 装柜计算器提前模拟，能发现"换个柜型能装下"或"这批货需要两个柜"——装货当天才发现要两个柜就晚了。</p>
+<h2>2. 重货沉底、轻货上铺</h2>
+<p>重的箱子放柜子前半段和底层，轻的铺上层。既安全又能避免偏载拒装。</p>
+<h2>3. 相同货物集中码放</h2>
+<p>同尺寸的箱子像砌墙一样排成网格，比混着装多出 10% 以上的装载率。</p>
+<h2>4. 小件塞缝</h2>
+<p>大件之间的缝隙用小件填补——装柜工具会自动告诉你哪些缝隙能塞什么。</p>
+<h2>5. 老老实实量外箱尺寸</h2>
+<p>"差不多 60" 和实际 63 差的每一厘米都在柜子里放大。量外尺寸，量三次。</p>
+<h2>6. 控制偏载</h2>
+<p>左右或前后重量差超过 60% 有拒装风险。装载后看一眼重量分布。</p>
+<h2>7. 打托与散装算两笔账</h2>
+<p>打托保护货物但吃掉装载率（托盘之间留空）。两种方案都算一遍再决定——差价可能超出托盘成本。</p>
+`,
+  },
+  {
+    file: "tips-freight-en.html", lang: "en",
+    title: "7 practical ways to cut sea freight cost with better loading",
+    desc: "Load factor, palletizing strategy, weight balance — 7 container loading tips you can use today, with a free 3D planning tool.",
+    cta: "Plan your next container — free",
+    body: `
+<p>Ocean freight is priced per container. <strong>Every 10% of load factor you gain is a tenth of the freight you keep.</strong> Seven tips, ordered by how fast they pay off.</p>
+<h2>1. Plan before you load</h2>
+<p>Simulate in a 3D load planner first — you'll learn whether a different container type fits, or that this shipment needs two containers. Finding out on loading day is too late.</p>
+<h2>2. Heavy low, light high</h2>
+<p>Heavy boxes to the front bottom, light ones on top. Safer, and avoids rejection for weight imbalance.</p>
+<h2>3. Tile identical boxes</h2>
+<p>Uniform boxes in a grid pattern yield 10%+ more load factor than mixed stacking.</p>
+<h2>4. Fill gaps with small items</h2>
+<p>A good planner tells you exactly which small items fit the leftover strips and tiers.</p>
+<h2>5. Measure the real outer boxes</h2>
+<p>"About 60" versus an actual 63 — every centimeter is multiplied across the container. Measure outer dimensions, twice.</p>
+<h2>6. Watch the weight balance</h2>
+<p>More than 60/40 front-back or left-right imbalance risks rejection. Check the distribution after planning.</p>
+<h2>7. Do the pallet math both ways</h2>
+<p>Pallets protect cargo but eat load factor (air between pallets). Run both scenarios — the difference may exceed the pallet cost.</p>
+`,
+  },
+];
+for (const art of CONTENTS) {
+  const html = `<!DOCTYPE html>
+<html lang="${art.lang}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>柜满满 — ${art.title}</title>
+<meta name="description" content="${art.desc}">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="${BRAND}">
+<meta property="og:title" content="${art.title}">
+<meta property="og:description" content="${art.desc}">
+<meta property="og:image" content="${BASE}/og.png">
+<link rel="alternate" hreflang="${art.lang}" href="${BASE}/seo/${art.file}">
+${hreflang}
+<style>${style}
+  article { max-width:760px; margin:0 auto; padding:36px 20px; }
+  article h2 { color:#1a9a5c; margin:28px 0 10px; font-size:20px; }
+  article p, article li { font-size:15px; color:#313131; }
+  article table { width:100%; border-collapse:collapse; margin:14px 0; font-size:14px; background:#fff; }
+  article th, article td { border:1px solid #eceef0; padding:8px 12px; text-align:left; }
+  article th { background:#e8f6ee; color:#178550; }
+  .a-cta { display:block; width:max-content; margin:30px auto; background:#1a9a5c; color:#fff; padding:14px 34px; border-radius:999px; text-decoration:none; font-weight:600; }
+  .a-cta:hover { background:#178550; }
+</style>
+</head>
+<body>
+<header><h1>📦 ${art.title}</h1><p>${art.desc}</p></header>
+<article>
+${art.body}
+<a class="a-cta" href="../index.html?lang=${art.lang}">${art.cta} →</a>
+</article>
+<footer><div class="langs"><a href="${BASE}/">中文</a> · <a href="guide-40hc${art.lang === "zh" ? "-en" : ""}.html">${art.lang === "zh" ? "English" : "中文版"}</a> · <a href="tips-freight${art.lang === "zh" ? "-en" : ""}.html">${art.lang === "zh" ? "English" : "中文版"}</a> · <a href="en.html">EN</a></div>📦 ${BRAND}（柜满满）</footer>
+</body>
+</html>`;
+  fs.writeFileSync(path.join(__dirname, "seo", art.file), html);
+  console.log("生成 seo/" + art.file);
+}
+const artUrls = CONTENTS.map(a => `<url><loc>${BASE}/seo/${a.file}</loc><lastmod>${today}</lastmod></url>`).join("\n");
+fs.writeFileSync(path.join(__dirname, "seo", "sitemap.xml"),
+  sitemap.replace("</urlset>", artUrls + "\n</urlset>"));
+console.log("sitemap 含文章页");
+
 fs.writeFileSync(path.join(__dirname, "seo", "sitemap.xml"), sitemap);
 fs.writeFileSync(path.join(__dirname, "seo", "robots.txt"), `User-agent: *\nAllow: /\nSitemap: ${BASE}/seo/sitemap.xml\n`);
 console.log("生成 seo/sitemap.xml + seo/robots.txt");

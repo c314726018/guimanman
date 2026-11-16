@@ -1,10 +1,11 @@
 /* 页面端到端验证 v2：多语言 + 导入 + 分享链接 + 单位 */
 "use strict";
-const { chromium } = require("playwright-core");
+const pw = require("playwright-core");
+const chromium = (process.env.BROWSER === "webkit") ? pw.webkit : pw.chromium;
 
 (async () => {
   const exe = process.env.HOME + "/.agent-browser/browsers/chrome-152.0.7977.64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
-  const browser = await chromium.launch({ executablePath: exe, headless: true });
+  const browser = await chromium.launch({ headless: true, args: process.env.BROWSER === "webkit" ? ["--no-sandbox"] : [], executablePath: process.env.BROWSER === "webkit" ? undefined : exe });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errors = [];
   page.on("pageerror", e => errors.push("PAGEERROR: " + e.message));
