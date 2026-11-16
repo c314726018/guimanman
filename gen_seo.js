@@ -3,8 +3,10 @@
 const fs = require("fs");
 const path = require("path");
 
-const BASE = ""; // 部署时填域名，如 https://www.guimanman.com
+const BASE = "https://c314726018.github.io/guimanman"; // 绑定自定义域名后改为正式域名
 const BRAND = "GuiManMan"; // 柜满满
+const RTL_LANGS = ["ar", "he"];
+const EXTRA_PAGES = require("./seo-extra.js");
 const APP = "../index.html";
 
 const PAGES = [
@@ -213,12 +215,14 @@ footer{text-align:center;color:#94a3b8;font-size:13px;padding:24px}
 .langs{font-size:12px;margin-top:10px}.langs a{color:#93c5fd;margin:0 6px;text-decoration:none}
 @media(max-width:600px){header h1{font-size:20px}}`;
 
-let hreflang = PAGES.map(p => `<link rel="alternate" hreflang="${p.lang}" href="${BASE}/${p.file}">`).join("\n");
-hreflang += `\n<link rel="alternate" hreflang="zh" href="${BASE}/../index.html">`;
+const ALL_PAGES = PAGES.concat(EXTRA_PAGES);
+let hreflang = ALL_PAGES.map(p => `<link rel="alternate" hreflang="${p.lang}" href="${BASE}/${p.file}">`).join("\n");
+hreflang += `\n<link rel="alternate" hreflang="zh" href="${BASE}/">\n<link rel="alternate" hreflang="x-default" href="${BASE}/">`;
 
-for (const p of PAGES) {
+for (const p of ALL_PAGES) {
+  const dirAttr = p.rtl ? ' dir="rtl"' : "";
   const html = `<!DOCTYPE html>
-<html lang="${p.lang}">
+<html lang="${p.lang}"${dirAttr}>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -232,13 +236,13 @@ ${hreflang}
 <header>
   <h1>📦 ${p.h1}</h1>
   <p>${p.sub}</p>
-  <div class="langs">${PAGES.map(x => `<a href="${x.file}" hreflang="${x.lang}">${x.lang.toUpperCase()}</a>`).join("")} · <a href="../index.html">中文</a></div>
+  <div class="langs">${ALL_PAGES.map(x => `<a href="${x.file}" hreflang="${x.lang}">${x.lang.toUpperCase()}</a>`).join("")} · <a href="../">中文</a></div>
 </header>
 <div class="wrap">
   <div class="grid">
     ${p.features.map(([b, d]) => `<div class="card"><b>${b}</b><p>${d}</p></div>`).join("\n    ")}
   </div>
-  <a class="cta" href="${APP}?lang=${p.lang}">${p.cta} →</a>
+  <a class="cta" href="../index.html?lang=${p.lang}">${p.cta} →</a>
   <h2>FAQ</h2>
   <div class="faq">
     ${p.faq.map(([q, a]) => `<div><b>${q}</b>${a}</div>`).join("\n    ")}
@@ -250,4 +254,16 @@ ${hreflang}
   fs.writeFileSync(path.join(__dirname, "seo", p.file), html);
   console.log("生成 seo/" + p.file);
 }
+
+/* sitemap.xml + robots.txt */
+const today = new Date().toISOString().slice(0, 10);
+const urls = [`<url><loc>${BASE}/</loc><lastmod>${today}</lastmod><priority>1.0</priority></url>`]
+  .concat(ALL_PAGES.map(p => `<url><loc>${BASE}/seo/${p.file}</loc><lastmod>${today}</lastmod><xhtml:link rel="alternate" hreflang="${p.lang}" href="${BASE}/seo/${p.file}"/></url>`));
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${urls.join("\n")}
+</urlset>`;
+fs.writeFileSync(path.join(__dirname, "seo", "sitemap.xml"), sitemap);
+fs.writeFileSync(path.join(__dirname, "seo", "robots.txt"), `User-agent: *\nAllow: /\nSitemap: ${BASE}/seo/sitemap.xml\n`);
+console.log("生成 seo/sitemap.xml + seo/robots.txt");
 console.log("完成");

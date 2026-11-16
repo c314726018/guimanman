@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://c314726018.github.io/guimanman/seo/sitemap.xml

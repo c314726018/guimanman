@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GuiManMan — Pengiraan Muatan Kontena Percuma 3D — GuiManMan</title>
+<meta name="description" content="Kalkulator muatan kontena 3D percuma dalam talian. Rancang muatan ke kontena 20GP/40GP/40HC/45HC, peraturan tindanan, agihan berat, import Excel.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+<link rel="alternate" hreflang="en" href="https://c314726018.github.io/guimanman/en.html">
+<link rel="alternate" hreflang="es" href="https://c314726018.github.io/guimanman/es.html">
+<link rel="alternate" hreflang="ja" href="https://c314726018.github.io/guimanman/ja.html">
+<link rel="alternate" hreflang="ko" href="https://c314726018.github.io/guimanman/ko.html">
+<link rel="alternate" hreflang="ru" href="https://c314726018.github.io/guimanman/ru.html">
+<link rel="alternate" hreflang="vi" href="https://c314726018.github.io/guimanman/vi.html">
+<link rel="alternate" hreflang="pt" href="https://c314726018.github.io/guimanman/pt.html">
+<link rel="alternate" hreflang="de" href="https://c314726018.github.io/guimanman/de.html">
+<link rel="alternate" hreflang="fr" href="https://c314726018.github.io/guimanman/fr.html">
+<link rel="alternate" hreflang="zhTW" href="https://c314726018.github.io/guimanman/zhTW.html">
+<link rel="alternate" hreflang="it" href="https://c314726018.github.io/guimanman/it.html">
+<link rel="alternate" hreflang="nl" href="https://c314726018.github.io/guimanman/nl.html">
+<link rel="alternate" hreflang="pl" href="https://c314726018.github.io/guimanman/pl.html">
+<link rel="alternate" hreflang="tr" href="https://c314726018.github.io/guimanman/tr.html">
+<link rel="alternate" hreflang="id" href="https://c314726018.github.io/guimanman/id.html">
+<link rel="alternate" hreflang="ms" href="https://c314726018.github.io/guimanman/ms.html">
+<link rel="alternate" hreflang="fi" href="https://c314726018.github.io/guimanman/fi.html">
+<link rel="alternate" hreflang="sv" href="https://c314726018.github.io/guimanman/sv.html">
+<link rel="alternate" hreflang="cs" href="https://c314726018.github.io/guimanman/cs.html">
+<link rel="alternate" hreflang="hu" href="https://c314726018.github.io/guimanman/hu.html">
+<link rel="alternate" hreflang="el" href="https://c314726018.github.io/guimanman/el.html">
+<link rel="alternate" hreflang="th" href="https://c314726018.github.io/guimanman/th.html">
+<link rel="alternate" hreflang="ar" href="https://c314726018.github.io/guimanman/ar.html">
+<link rel="alternate" hreflang="he" href="https://c314726018.github.io/guimanman/he.html">
+<link rel="alternate" hreflang="zh" href="https://c314726018.github.io/guimanman/">
+<link rel="alternate" hreflang="x-default" href="https://c314726018.github.io/guimanman/">
+<style>body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;margin:0;color:#1a1a1a;line-height:1.7}
+header{background:#1e293b;color:#fff;padding:28px 20px;text-align:center}
+header h1{font-size:26px;margin:0 0 8px}header p{color:#94a3b8;max-width:640px;margin:8px auto}
+.wrap{max-width:880px;margin:0 auto;padding:32px 20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.card{background:#fff;border:1px solid #e2e5ea;border-radius:10px;padding:18px}
+.card b{color:#1d4ed8}.card p{font-size:14px;color:#475569;margin:6px 0 0}
+.cta{display:block;width:max-content;margin:32px auto;background:#2563eb;color:#fff;padding:14px 36px;border-radius:8px;text-decoration:none;font-size:16px;font-weight:600}
+.faq div{background:#f6f8fb;border-radius:8px;padding:14px 18px;margin:10px 0}
+.faq b{display:block;margin-bottom:4px}
+footer{text-align:center;color:#94a3b8;font-size:13px;padding:24px}
+.langs{font-size:12px;margin-top:10px}.langs a{color:#93c5fd;margin:0 6px;text-decoration:none}
+@media(max-width:600px){header h1{font-size:20px}}</style>
+</head>
+<body>
+<header>
+  <h1>📦 Perancang muatan kontena</h1>
+  <p>Rancang cara kargo muat ke dalam kontena — visualisasi 3D, peraturan tindanan dan keseimbangan berat. Percuma, tanpa pendaftaran.</p>
+  <div class="langs"><a href="en.html" hreflang="en">EN</a><a href="es.html" hreflang="es">ES</a><a href="ja.html" hreflang="ja">JA</a><a href="ko.html" hreflang="ko">KO</a><a href="ru.html" hreflang="ru">RU</a><a href="vi.html" hreflang="vi">VI</a><a href="pt.html" hreflang="pt">PT</a><a href="de.html" hreflang="de">DE</a><a href="fr.html" hreflang="fr">FR</a><a href="zhTW.html" hreflang="zhTW">ZHTW</a><a href="it.html" hreflang="it">IT</a><a href="nl.html" hreflang="nl">NL</a><a href="pl.html" hreflang="pl">PL</a><a href="tr.html" hreflang="tr">TR</a><a href="id.html" hreflang="id">ID</a><a href="ms.html" hreflang="ms">MS</a><a href="fi.html" hreflang="fi">FI</a><a href="sv.html" hreflang="sv">SV</a><a href="cs.html" hreflang="cs">CS</a><a href="hu.html" hreflang="hu">HU</a><a href="el.html" hreflang="el">EL</a><a href="th.html" hreflang="th">TH</a><a href="ar.html" hreflang="ar">AR</a><a href="he.html" hreflang="he">HE</a> · <a href="../">中文</a></div>
+</header>
+<div class="wrap">
+  <div class="grid">
+    <div class="card"><b>Visualisasi 3D</b><p>Putar dan zum; setiap item berkod warna untuk gudang.</p></div>
+    <div class="card"><b>Peraturan tindanan</b><p>Lapisan maks setiap item — bateri litium dan barang rapuh dikendalikan betul.</p></div>
+    <div class="card"><b>Kekal menegak</b><p>Kunci item yang tidak boleh diputar (cecair, elektronik, jentera).</p></div>
+    <div class="card"><b>Agihan berat</b><p>Semakan keseimbangan depan/belakang dan kiri/kanan.</p></div>
+    <div class="card"><b>Import Excel/CSV</b><p>Tampal senarai bungkusan atau import hamparan.</p></div>
+    <div class="card"><b>Pelan boleh dikongsi</b><p>Hantar pautan; rakan membuka pelan yang sama.</p></div>
+  </div>
+  <a class="cta" href="../index.html?lang=ms">Buka perancang — percuma →</a>
+  <h2>FAQ</h2>
+  <div class="faq">
+    <div><b>Betul-betul percuma?</b>Ya. Semua fungsi versi semasa adalah percuma.</div>
+    <div><b>Kontena apa disokong?</b>20GP, 40GP, 40HC, 45HC ukuran dalaman standard, plus saiz tersuai.</div>
+    <div><b>Perlu pasang apa-apa?</b>Tidak. Berfungsi dalam pelayar, desktop dan mudah alih.</div>
+  </div>
+</div>
+<footer>📦 GuiManMan（柜满满） — Free Container Load Planning Tool</footer>
+</body>
+</html>

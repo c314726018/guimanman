@@ -49,6 +49,45 @@ const { chromium } = require("playwright-core");
   await page.selectOption("#langSel", "zh");
   await page.waitForTimeout(200);
 
+  /* 3b. 新增 15 语言抽查（含 RTL） */
+  for (const [lg, expect, rtl] of [["zhTW", "開始計算"], ["ar", "احسب", true], ["he", "חשב", true], ["tr", "Hesapla"], ["pl", "Oblicz"], ["th", "คำนวณ"]]) {
+    await page.selectOption("#langSel", lg);
+    await page.waitForTimeout(200);
+    const txt = (await page.textContent("#btnCalc")).trim();
+    check("语言 " + lg, txt === expect, txt);
+    if (rtl) {
+      const dir = await page.evaluate(() => document.documentElement.dir);
+      check("RTL 方向 " + lg, dir === "rtl", dir);
+    }
+  }
+  await page.selectOption("#langSel", "zh");
+  await page.waitForTimeout(200);
+
+  /* 3c. v2 分享往返：新字段（承重/优先级/必须底层/间隙）保真 */
+  await page.evaluate(() => {
+    goods = [{ name: "FragileBox", l: 100, w: 80, h: 60, qty: 10, kg: 90, stack: 3,
+      upright: false, maxLoad: 120, priority: 2, mustFloor: true, cylinder: false, overhang: 0.9, color: "#fff" }];
+    goodsSeq = 1;
+    document.getElementById("advGap").value = "4";
+  });
+  const hashV2 = await page.evaluate(() => "#d=" + encodeState());
+  const page4 = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  await page4.goto("http://127.0.0.1:8642/index.html" + hashV2);
+  await page4.waitForTimeout(1500);
+  const v2 = await page4.evaluate(() => {
+    const g = goods[0];
+    return { n: g.name, maxLoad: g.maxLoad, priority: g.priority, mustFloor: g.mustFloor,
+             gap: +document.getElementById("advGap").value, placedL: packResults ? packResults.containers[0].placed[0].L : -1 };
+  });
+  check("v2 分享：maxLoad 恢复 120", v2.maxLoad === 120, JSON.stringify(v2));
+  check("v2 分享：priority 2 / mustFloor / gap 4", v2.priority === 2 && v2.mustFloor === true && v2.gap === 4, "");
+  check("v2 分享：间隙生效（104）", Math.abs(v2.placedL - 104) < 0.01, String(v2.placedL));
+  await page4.close();
+
+  /* 3d. sitemap 与 robots 本地存在 */
+  const sm = require("fs").existsSync("seo/sitemap.xml"), rb = require("fs").existsSync("seo/robots.txt");
+  check("sitemap.xml + robots.txt 已生成", sm && rb, "");
+
   /* 4. 粘贴导入（模拟 Excel TSV） */
   await page.click("#btnPasteToggle");
   await page.fill("#pasteTa", "钢架\t120\t80\t90\t30\t55\t2\n包装膜\t30\t30\t20\t500\t0.5\t8");
@@ -87,6 +126,8 @@ const { chromium } = require("playwright-core");
   check("CSV 英文表头识别", csvNames.includes("Cardbox") && csvNames.includes("Crate"), csvNames);
 
   /* 8. 立放限制（勾选后添加 → 自动计算） */
+  await page.evaluate(() => { document.getElementById("advGap").value = "0"; document.getElementById("advGap").dispatchEvent(new Event("input")); });
+  await page.waitForTimeout(1200);
   await page.fill("#gName", "Drum");
   await page.fill("#gL", "60"); await page.fill("#gW", "40"); await page.fill("#gH", "80");
   await page.fill("#gQty", "50"); await page.fill("#gKg", "25");
@@ -144,9 +185,9 @@ const { chromium } = require("playwright-core");
     const placed = packResults.containers.flatMap(c => c.placed);
     const g = goods.find(x => x.name === "Cardbox");
     const p = placed.find(x => x.gi === goods.indexOf(g));
-    return p ? p.L : -1;
+    return p ? p.L + p.W + p.H : -1;
   });
-  check("间隙 5cm 生效（60→65）", Math.abs(gapBox - 65) < 0.01, String(gapBox));
+  check("间隙 5cm 生效（三轴和 155）", Math.abs(gapBox - 155) < 0.01, String(gapBox));
   await page.evaluate(() => { document.getElementById("advGap").value = "0"; document.getElementById("advGap").dispatchEvent(new Event("input")); });
   await page.waitForTimeout(1200);
 

@@ -170,7 +170,11 @@
       </div>
       <div class="grid2">
         <label class="f"><span id="lbMaxLoad">可承载重量 (kg)</span><input type="number" id="gMaxLoad" placeholder="不限" min="0"></label>
+        <label class="f"><span id="lbOverhang">允许悬空比率</span><input type="number" id="gOverhang" placeholder="0.7" min="0.1" max="1" step="0.05"></label>
+      </div>
+      <div class="grid2">
         <label class="f"><span id="lbPriority">装载优先级</span><input type="number" id="gPriority" placeholder="0" min="0"></label>
+        <label class="f"><span>&nbsp;</span><input type="text" id="gSpacer" style="visibility:hidden" tabindex="-1"></label>
       </div>
       <label class="cb"><input type="checkbox" id="gUpright"><span id="lbUpright">禁止旋转（保持直立）</span></label>
       <label class="cb"><input type="checkbox" id="gMustFloor"><span id="lbMustFloor">必须放底层</span></label>
@@ -238,6 +242,7 @@
 <script src="lib/OrbitControls.js"></script>
 <script src="lib/pack.js"></script>
 <script src="lib/importer.js"></script>
+<script src="lib/langs-extra.js"></script>
 <script src="lib/xlsx.full.min.js"></script>
 <script>
 "use strict";
@@ -281,7 +286,7 @@ const I18N = {
     balTitle:"重量分布", balLR:"左右", balFB:"前后", sideL:"左", sideR:"右", sideF:"前", sideB:"后",
     balWarn:"⚠️ 偏载超过 60%，建议调整摆放",
     pdfBtn:"导出 PDF", dragHint:"拖动旋转 · 滚轮缩放 · 手势双指缩放", tDone:"✅ 计算完成",
-    lbMaxLoad:"可承载重量 (kg)", lbPriority:"装载优先级(1最先)", lbMustFloor:"必须放底层", lbCyl:"圆柱形(桶/管)",
+    lbMaxLoad:"可承载重量 (kg)", lbOverhang:"允许悬空比率", lbPriority:"装载优先级(1最先)", lbMustFloor:"必须放底层", lbCyl:"圆柱形(桶/管)",
     gapLb:"摆放间隙 (cm/件)", palletMode:"打托模式（先码托盘再装柜）", palletLl:"托盘长(cm)", palletWl:"托盘宽(cm)", palletHl:"限高(cm)", palletPl:"限重(kg)",
      hAdv:"高级选项", savePlan:"保存方案", myPlans:"我的方案", btnLoadPlan:"载入", btnDelPlan:"删除", noPlans:"暂无方案",
     planSaved:"✅ 方案已保存", planLoaded:"已载入方案", planDeleted:"已删除", planNamePrompt:"输入方案名称：", logoBtn:"Logo", pdfCompany:"输入公司名称（用于报告抬头，可留空）：",
@@ -313,7 +318,7 @@ const I18N = {
     balTitle:"Weight Distribution", balLR:"Left/Right", balFB:"Front/Rear", sideL:"L", sideR:"R", sideF:"F", sideB:"B",
     balWarn:"⚠️ Imbalance over 60% — consider rearranging",
     pdfBtn:"Export PDF", dragHint:"Drag to rotate · Scroll to zoom · Pinch on mobile", tDone:"✅ Calculation complete",
-    lbMaxLoad:"Max load on top (kg)", lbPriority:"Load priority (1=first)", lbMustFloor:"Must be bottom layer", lbCyl:"Cylinder (barrel/pipe)",
+    lbMaxLoad:"Max load on top (kg)", lbOverhang:"Allowed overhang ratio", lbPriority:"Load priority (1=first)", lbMustFloor:"Must be bottom layer", lbCyl:"Cylinder (barrel/pipe)",
     gapLb:"Gap per item (cm)", palletMode:"Pallet mode (cartons on pallets first)", palletLl:"Pallet L (cm)", palletWl:"Pallet W (cm)", palletHl:"Max height (cm)", palletPl:"Max load (kg)",
      hAdv:"Advanced", savePlan:"Save Plan", myPlans:"My Plans", btnLoadPlan:"Load", btnDelPlan:"Delete", noPlans:"No plans yet",
     planSaved:"✅ Plan saved", planLoaded:"Plan loaded", planDeleted:"Deleted", planNamePrompt:"Plan name:", logoBtn:"Logo", pdfCompany:"Company name for report header (optional):",
@@ -345,7 +350,7 @@ const I18N = {
     balTitle:"Distribución de peso", balLR:"Izq/Der", balFB:"Frente/Atrás", sideL:"I", sideR:"D", sideF:"F", sideB:"A",
     balWarn:"⚠️ Desequilibrio superior al 60% — considere reorganizar",
     pdfBtn:"Exportar PDF", dragHint:"Arrastra para rotar · Rueda para zoom · Pellizca en móvil", tDone:"✅ Cálculo completado",
-    lbMaxLoad:"Carga máx. encima (kg)", lbPriority:"Prioridad (1=primero)", lbMustFloor:"Siempre en el fondo", lbCyl:"Cilindro (barril/tubo)",
+    lbMaxLoad:"Carga máx. encima (kg)", lbOverhang:"Voladizo permitido", lbPriority:"Prioridad (1=primero)", lbMustFloor:"Siempre en el fondo", lbCyl:"Cilindro (barril/tubo)",
     gapLb:"Hueco por artículo (cm)", palletMode:"Modo paletizado", palletLl:"Largo palet (cm)", palletWl:"Ancho palet (cm)", palletHl:"Altura máx. (cm)", palletPl:"Carga máx. (kg)",
      hAdv:"Opciones avanzadas", savePlan:"Guardar plan", myPlans:"Mis planes", btnLoadPlan:"Cargar", btnDelPlan:"Eliminar", noPlans:"Sin planes",
     planSaved:"✅ Plan guardado", planLoaded:"Plan cargado", planDeleted:"Eliminado", planNamePrompt:"Nombre del plan:", logoBtn:"Logo", pdfCompany:"Nombre de empresa para el encabezado (opcional):",
@@ -377,7 +382,7 @@ const I18N = {
     balTitle:"重量配分", balLR:"左右", balFB:"前後", sideL:"左", sideR:"右", sideF:"前", sideB:"後",
     balWarn:"⚠️ 偏荷重60%超 — 積み直しをご検討ください",
     pdfBtn:"PDF出力", dragHint:"ドラッグで回転 · ホイールでズーム · ピンチで拡大縮小", tDone:"✅ 計算完了",
-    lbMaxLoad:"耐荷重 (kg)", lbPriority:"積載優先度(1=先)", lbMustFloor:"必ず底層", lbCyl:"円柱(ドラム/パイプ)",
+    lbMaxLoad:"耐荷重 (kg)", lbOverhang:"張り出し許容率", lbPriority:"積載優先度(1=先)", lbMustFloor:"必ず底層", lbCyl:"円柱(ドラム/パイプ)",
     gapLb:"各品目の間隔 (cm)", palletMode:"パレットモード", palletLl:"パレット長(cm)", palletWl:"パレット幅(cm)", palletHl:"高さ上限(cm)", palletPl:"重量上限(kg)",
      hAdv:"詳細設定", savePlan:"計画を保存", myPlans:"マイ計画", btnLoadPlan:"読込", btnDelPlan:"削除", noPlans:"計画なし",
     planSaved:"✅ 保存しました", planLoaded:"読み込みました", planDeleted:"削除しました", planNamePrompt:"計画名：", logoBtn:"ロゴ", pdfCompany:"報告書ヘッダーの会社名（任意）：",
@@ -409,7 +414,7 @@ const I18N = {
     balTitle:"중량 분포", balLR:"좌/우", balFB:"전/후", sideL:"좌", sideR:"우", sideF:"전", sideB:"후",
     balWarn:"⚠️ 편중 60% 초과 — 재배치를 권장합니다",
     pdfBtn:"PDF 내보내기", dragHint:"드래그 회전 · 휠 줌 · 핀치줌", tDone:"✅ 계산 완료",
-    lbMaxLoad:"위 하중 한계 (kg)", lbPriority:"적재 우선순위(1=먼저)", lbMustFloor:"바닥층 필수", lbCyl:"원통형(드럼/파이프)",
+    lbMaxLoad:"위 하중 한계 (kg)", lbOverhang:"허용 오버행 비율", lbPriority:"적재 우선순위(1=먼저)", lbMustFloor:"바닥층 필수", lbCyl:"원통형(드럼/파이프)",
     gapLb:"품목 간 간격 (cm)", palletMode:"팔레트 모드", palletLl:"팔레트 가로(cm)", palletWl:"팔레트 세로(cm)", palletHl:"높이 한계(cm)", palletPl:"중량 한계(kg)",
      hAdv:"고급 옵션", savePlan:"계획 저장", myPlans:"내 계획", btnLoadPlan:"불러오기", btnDelPlan:"삭제", noPlans:"계획 없음",
     planSaved:"✅ 저장됨", planLoaded:"불러옴", planDeleted:"삭제됨", planNamePrompt:"계획 이름:", logoBtn:"로고", pdfCompany:"보고서 헤더에 표시할 회사명（선택）：",
@@ -441,7 +446,7 @@ const I18N = {
     balTitle:"Распределение веса", balLR:"Лев/Прав", balFB:"Перед/Зад", sideL:"Л", sideR:"П", sideF:"Пд", sideB:"Зд",
     balWarn:"⚠️ Дисбаланс свыше 60% — рекомендуется перегруппировка",
     pdfBtn:"Экспорт PDF", dragHint:"Вращение — перетаскивание · масштаб — колесом", tDone:"✅ Расчёт завершён",
-    lbMaxLoad:"Нагрузка сверху (кг)", lbPriority:"Приоритет (1=первый)", lbMustFloor:"Только на дно", lbCyl:"Цилиндр (бочка/труба)",
+    lbMaxLoad:"Нагрузка сверху (кг)", lbOverhang:"Допустимый свес", lbPriority:"Приоритет (1=первый)", lbMustFloor:"Только на дно", lbCyl:"Цилиндр (бочка/труба)",
     gapLb:"Зазор на предмет (см)", palletMode:"Паллетный режим", palletLl:"Длина паллета (см)", palletWl:"Ширина паллета (см)", palletHl:"Макс. высота (см)", palletPl:"Макс. вес (кг)",
      hAdv:"Дополнительно", savePlan:"Сохранить план", myPlans:"Мои планы", btnLoadPlan:"Загрузить", btnDelPlan:"Удалить", noPlans:"Планов нет",
     planSaved:"✅ Сохранено", planLoaded:"Загружено", planDeleted:"Удалено", planNamePrompt:"Название плана:", logoBtn:"Логотип", pdfCompany:"Название компании для шапки отчёта (необязательно):",
@@ -473,7 +478,7 @@ const I18N = {
     balTitle:"Phân bố trọng lượng", balLR:"Trái/Phải", balFB:"Trước/Sau", sideL:"T", sideR:"P", sideF:"Trước", sideB:"Sau",
     balWarn:"⚠️ Lệch tải quá 60% — nên sắp xếp lại",
     pdfBtn:"Xuất PDF", dragHint:"Kéo để xoay · Cuộn để thu phóng · Chạm hai ngón", tDone:"✅ Đã tính xong",
-    lbMaxLoad:"Tải trọng chịu phía trên (kg)", lbPriority:"Ưu tiên xếp (1=trước)", lbMustFloor:"Bắt buộc đáy", lbCyl:"Hình trụ (thùng/ống)",
+    lbMaxLoad:"Tải trọng chịu phía trên (kg)", lbOverhang:"Tỷ lệ nhô ra cho phép", lbPriority:"Ưu tiên xếp (1=trước)", lbMustFloor:"Bắt buộc đáy", lbCyl:"Hình trụ (thùng/ống)",
     gapLb:"Khe hở mỗi món (cm)", palletMode:"Chế độ pallet", palletLl:"Dài pallet (cm)", palletWl:"Rộng pallet (cm)", palletHl:"Giới hạn cao (cm)", palletPl:"Giới hạn nặng (kg)",
      hAdv:"Nâng cao", savePlan:"Lưu phương án", myPlans:"Phương án của tôi", btnLoadPlan:"Mở", btnDelPlan:"Xóa", noPlans:"Chưa có",
     planSaved:"✅ Đã lưu", planLoaded:"Đã mở", planDeleted:"Đã xóa", planNamePrompt:"Tên phương án:", logoBtn:"Logo", pdfCompany:"Tên công ty in đầu báo cáo (không bắt buộc):",
@@ -505,7 +510,7 @@ const I18N = {
     balTitle:"Distribuição de peso", balLR:"Esq/Dir", balFB:"Frente/Trás", sideL:"E", sideR:"D", sideF:"F", sideB:"T",
     balWarn:"⚠️ Desequilíbrio acima de 60% — considere reorganizar",
     pdfBtn:"Exportar PDF", dragHint:"Arraste para girar · Role para ampliar · Pinça no celular", tDone:"✅ Cálculo concluído",
-    lbMaxLoad:"Carga máx. encima (kg)", lbPriority:"Prioridade (1=primeiro)", lbMustFloor:"Sempre no fundo", lbCyl:"Cilindro (barril/tubo)",
+    lbMaxLoad:"Carga máx. encima (kg)", lbOverhang:"Volado permitido", lbPriority:"Prioridade (1=primeiro)", lbMustFloor:"Sempre no fundo", lbCyl:"Cilindro (barril/tubo)",
     gapLb:"Folga por item (cm)", palletMode:"Modo paletizado", palletLl:"Compr. palete (cm)", palletWl:"Larg. palete (cm)", palletHl:"Altura máx. (cm)", palletPl:"Carga máx. (kg)",
      hAdv:"Opções avançadas", savePlan:"Salvar plano", myPlans:"Meus planos", btnLoadPlan:"Carregar", btnDelPlan:"Excluir", noPlans:"Sem planos",
     planSaved:"✅ Plano salvo", planLoaded:"Plano carregado", planDeleted:"Excluído", planNamePrompt:"Nome do plano:", logoBtn:"Logo", pdfCompany:"Nome da empresa para o cabeçalho do relatório (opcional):",
@@ -537,7 +542,7 @@ const I18N = {
     balTitle:"Gewichtsverteilung", balLR:"Links/Rechts", balFB:"Vorne/Hinten", sideL:"L", sideR:"R", sideF:"V", sideB:"H",
     balWarn:"⚠️ Ungleichgewicht über 60% — Umladung erwägen",
     pdfBtn:"PDF exportieren", dragHint:"Ziehen zum Drehen · Scrollen zum Zoomen · Pinch auf Mobil", tDone:"✅ Berechnung abgeschlossen",
-    lbMaxLoad:"Traglast oben (kg)", lbPriority:"Ladepriorität (1=zuerst)", lbMustFloor:"Nur Bodenlage", lbCyl:"Zylinder (Fass/Rohr)",
+    lbMaxLoad:"Traglast oben (kg)", lbOverhang:"Erlaubte Überhangsquote", lbPriority:"Ladepriorität (1=zuerst)", lbMustFloor:"Nur Bodenlage", lbCyl:"Zylinder (Fass/Rohr)",
     gapLb:"Spalt pro Artikel (cm)", palletMode:"Palettenmodus", palletLl:"Palette L (cm)", palletWl:"Palette B (cm)", palletHl:"Max. Höhe (cm)", palletPl:"Max. Gewicht (kg)",
      hAdv:"Erweitert", savePlan:"Plan speichern", myPlans:"Meine Pläne", btnLoadPlan:"Laden", btnDelPlan:"Löschen", noPlans:"Keine Pläne",
     planSaved:"✅ Gespeichert", planLoaded:"Geladen", planDeleted:"Gelöscht", planNamePrompt:"Planname:", logoBtn:"Logo", pdfCompany:"Firmenname für den Berichtskopf (optional):",
@@ -569,7 +574,7 @@ const I18N = {
     balTitle:"Répartition du poids", balLR:"Gauche/Droite", balFB:"Avant/Arrière", sideL:"G", sideR:"D", sideF:"Av", sideB:"Ar",
     balWarn:"⚠️ Déséquilibre supérieur à 60% — envisagez de réorganiser",
     pdfBtn:"Exporter en PDF", dragHint:"Glissez pour pivoter · Molette pour zoomer · Pincer sur mobile", tDone:"✅ Calcul terminé",
-    lbMaxLoad:"Charge supportée dessus (kg)", lbPriority:"Priorité (1=premier)", lbMustFloor:"Toujours au fond", lbCyl:"Cylindre (fût/tuyau)",
+    lbMaxLoad:"Charge supportée dessus (kg)", lbOverhang:"Porte-à-faux autorisé", lbPriority:"Priorité (1=premier)", lbMustFloor:"Toujours au fond", lbCyl:"Cylindre (fût/tuyau)",
     gapLb:"Espace par article (cm)", palletMode:"Mode palettes", palletLl:"Long. palette (cm)", palletWl:"Larg. palette (cm)", palletHl:"Hauteur max. (cm)", palletPl:"Charge max. (kg)",
      hAdv:"Options avancées", savePlan:"Sauver le plan", myPlans:"Mes plans", btnLoadPlan:"Charger", btnDelPlan:"Supprimer", noPlans:"Aucun plan",
     planSaved:"✅ Sauvegardé", planLoaded:"Chargé", planDeleted:"Supprimé", planNamePrompt:"Nom du plan :", logoBtn:"Logo", pdfCompany:"Nom de l'entreprise pour l'en-tête du rapport (facultatif) :",
@@ -577,6 +582,10 @@ const I18N = {
     contLabels:{ "20GP":"Conteneur 20 pieds 20GP", "40GP":"Conteneur 40 pieds 40GP", "40HC":"Conteneur 40 pieds HC 40HC", "45HC":"Conteneur 45 pieds HC 45HC" },
   },
 };
+
+/* 合并扩展语言（lib/langs-extra.js） */
+if (window.I18N_EXTRA) Object.assign(I18N, window.I18N_EXTRA);
+if (window.LANGS_EXTRA) for (const l of window.LANGS_EXTRA) if (!LANGS.some(x => x[0] === l[0])) LANGS.push(l);
 
 /* ============ 状态 ============ */
 let goods = [];            // {name,l,w,h,qty,kg,stack,color} 内部单位 cm/kg
@@ -830,7 +839,8 @@ function renderTabs() {
 
 /* ============ i18n / 单位 应用 ============ */
 function applyI18n() {
-  document.documentElement.lang = lang === "zh" ? "zh-CN" : lang;
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : (lang === "zhTW" ? "zh-TW" : lang);
+  document.documentElement.dir = (lang === "ar" || lang === "he") ? "rtl" : "ltr";
   document.title = t().title;
   document.getElementById("hTitle").textContent = "📦 " + t().app;
   document.getElementById("tagFree").textContent = t().free;
@@ -851,6 +861,7 @@ function applyI18n() {
   document.getElementById("lbKg").textContent = t().lbKg;
   document.getElementById("lbStack").textContent = t().lbStack;
   document.getElementById("lbMaxLoad").textContent = t().lbMaxLoad;
+  document.getElementById("lbOverhang").textContent = t().lbOverhang;
   document.getElementById("lbPriority").textContent = t().lbPriority;
   document.getElementById("lbMustFloor").textContent = t().lbMustFloor;
   document.getElementById("lbCyl").textContent = t().lbCyl;
@@ -954,12 +965,13 @@ function addGoods() {
         maxLoad = +document.getElementById("gMaxLoad").value || 0,
         priority = +document.getElementById("gPriority").value || 0,
         mustFloor = document.getElementById("gMustFloor").checked,
-        cylinder = document.getElementById("gCyl").checked;
+        cylinder = document.getElementById("gCyl").checked,
+        overhang = +document.getElementById("gOverhang").value || 0;
   if (!(l > 0 && w > 0 && h > 0)) { toast(t().tFillDims); return; }
   if (!(qty > 0)) { toast(t().tNeedQty); return; }
   goodsSeq++;
-  goods.push({ name, l, w, h, qty, kg, stack, upright, maxLoad, priority, mustFloor, cylinder, color: PALETTE[(goodsSeq - 1) % PALETTE.length] });
-  ["gName", "gL", "gW", "gH", "gQty", "gKg", "gMaxLoad", "gPriority"].forEach(id => document.getElementById(id).value = "");
+  goods.push({ name, l, w, h, qty, kg, stack, upright, maxLoad, priority, mustFloor, cylinder, overhang, color: PALETTE[(goodsSeq - 1) % PALETTE.length] });
+  ["gName", "gL", "gW", "gH", "gQty", "gKg", "gMaxLoad", "gPriority", "gOverhang"].forEach(id => document.getElementById(id).value = "");
   document.getElementById("gStack").value = 5;
   document.getElementById("gUpright").checked = false;
   document.getElementById("gMustFloor").checked = false;
@@ -1066,7 +1078,7 @@ function savePlan() {
   const name = prompt(t().planNamePrompt) || ("Plan " + new Date().toLocaleString());
   const plans = getPlans();
   plans.unshift({ name, date: Date.now(),
-    data: { c: document.getElementById("containerSel").value, u: unit, g: goods.map(g => ({...g})),
+    data: { c: document.getElementById("containerSel").value, u: unit, g: serializeGoods(),
             cd: document.getElementById("containerSel").value === "custom" ? [customCont.l, customCont.w, customCont.h, customCont.payload] : null,
             gap: +document.getElementById("advGap").value || 0,
             pal: { on: document.getElementById("palletChk").checked,
@@ -1086,7 +1098,7 @@ function loadPlan(i) {
     customCont = { l: +d.cd[0] || 600, w: +d.cd[1] || 235, h: +d.cd[2] || 240, payload: +d.cd[3] || 20000 };
     document.getElementById("containerSel").value = "custom";
   } else if (d.c && CONTAINERS[d.c]) document.getElementById("containerSel").value = d.c;
-  goods = (d.g || []).map((g, i2) => ({ ...g, color: PALETTE[i2 % PALETTE.length] }));
+  goods = deserializeGoods(d.g);
   goodsSeq = goods.length;
   document.getElementById("advGap").value = d.gap || 0;
   if (d.pal) {
@@ -1126,11 +1138,29 @@ function handleLogo(file) {
 }
 
 /* ============ 分享链接 ============ */
+/* 序列化货物（分享/方案库共用，v2 含全部约束字段） */
+function serializeGoods() {
+  return goods.map(g => [g.name, g.l, g.w, g.h, g.qty, g.kg, g.stack,
+    g.upright ? 1 : 0, g.maxLoad || 0, g.priority || 0, g.mustFloor ? 1 : 0,
+    g.cylinder ? 1 : 0, g.overhang || 0]);
+}
+function deserializeGoods(arr) {
+  return (arr || []).map((r, i) => ({
+    name: String(r[0] || (t().goodsName + (i + 1))), l: +r[1], w: +r[2], h: +r[3],
+    qty: +r[4], kg: +r[5] || 0, stack: +r[6] || 5, upright: !!r[7],
+    maxLoad: +r[8] || 0, priority: +r[9] || 0, mustFloor: !!r[10], cylinder: !!r[11],
+    overhang: +r[12] || 0, color: PALETTE[i % PALETTE.length],
+  })).filter(g => g.l > 0 && g.w > 0 && g.h > 0 && g.qty > 0);
+}
+
 function encodeState() {
   const key = document.getElementById("containerSel").value;
   const st = {
-    v: 1, c: key, u: unit,
-    g: goods.map(g => [g.name, g.l, g.w, g.h, g.qty, g.kg, g.stack, g.upright ? 1 : 0]),
+    v: 2, c: key, u: unit, g: serializeGoods(),
+    gap: +document.getElementById("advGap").value || 0,
+    pal: { on: document.getElementById("palletChk").checked,
+           l: +document.getElementById("paL").value, w: +document.getElementById("paW").value,
+           h: +document.getElementById("paH").value, p: +document.getElementById("paP").value },
   };
   if (key === "custom") st.cd = [customCont.l, customCont.w, customCont.h, customCont.payload];
   return btoa(unescape(encodeURIComponent(JSON.stringify(st))));
@@ -1145,11 +1175,15 @@ function decodeState(str) {
     document.getElementById("containerSel").value = st.c;
   }
   if (st.u === "in" || st.u === "cm") unit = st.u;
-  goods = st.g.map((r, i) => ({
-    name: String(r[0] || (t().goodsName + (i + 1))), l: +r[1], w: +r[2], h: +r[3],
-    qty: +r[4], kg: +r[5] || 0, stack: +r[6] || 5, upright: !!r[7], color: PALETTE[i % PALETTE.length],
-  })).filter(g => g.l > 0 && g.w > 0 && g.h > 0 && g.qty > 0);
+  goods = deserializeGoods(st.g);
   goodsSeq = goods.length;
+  document.getElementById("advGap").value = st.gap || 0;
+  if (st.pal) {
+    document.getElementById("palletChk").checked = !!st.pal.on;
+    if (st.pal.l) { document.getElementById("paL").value = st.pal.l; document.getElementById("paW").value = st.pal.w;
+      document.getElementById("paH").value = st.pal.h; document.getElementById("paP").value = st.pal.p; }
+  }
+  document.getElementById("palletBox").style.display = document.getElementById("palletChk").checked ? "block" : "none";
   return goods.length > 0;
 }
 function shareLink() {

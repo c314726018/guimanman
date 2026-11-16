@@ -17,10 +17,12 @@ for f in index.html lib/pack.js lib/importer.js lib/three.min.js lib/OrbitContro
   [ -f "$f" ] && ok "文件存在: $f" || crit "核心文件缺失: $f"
 done
 
-# 2. SEO 落地页 9 个
-for l in en es pt de fr vi ja ko ru; do
+# 2. SEO 落地页 24 个 + sitemap/robots
+for l in en es pt de fr vi ja ko ru zhTW it nl pl tr id ms fi sv cs hu el th ar he; do
   [ -f "seo/$l.html" ] && ok "SEO 页: $l.html" || bad "SEO 页缺失: $l.html"
 done
+[ -f "seo/sitemap.xml" ] && ok "sitemap.xml" || bad "sitemap.xml 缺失"
+[ -f "seo/robots.txt" ] && ok "robots.txt" || bad "robots.txt 缺失"
 
 # 3. 品牌关键词
 grep -q "柜满满" index.html && ok "品牌关键词「柜满满」" || crit "index.html 缺品牌关键词"
