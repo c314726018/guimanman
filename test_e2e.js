@@ -39,8 +39,8 @@ const { chromium } = require("playwright-core");
   const tabTxt = await page.textContent("#containerTabs .ctab");
   check("英文柜标签", tabTxt.trim().startsWith("Load"), tabTxt.trim());
 
-  /* 3. 语言切换 → 日本語 / 한국어 / Español / Русский */
-  for (const [lg, expect] of [["ja", "計算開始"], ["ko", "계산 시작"], ["es", "Calcular"], ["ru", "Рассчитать"]]) {
+  /* 3. 语言切换 → 日本語 / 한국어 / Español / Português / Deutsch / Français / Tiếng Việt / Русский */
+  for (const [lg, expect] of [["ja", "計算開始"], ["ko", "계산 시작"], ["es", "Calcular"], ["pt", "Calcular"], ["fr", "Calculer"], ["de", "Berechnen"], ["vi", "Tính toán"], ["ru", "Рассчитать"]]) {
     await page.selectOption("#langSel", lg);
     await page.waitForTimeout(200);
     const txt = (await page.textContent("#btnCalc")).trim();

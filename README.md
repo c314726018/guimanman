@@ -15,7 +15,7 @@
 - Excel/CSV 导入（多语言表头识别）+ Excel 粘贴导入
 - 分享链接（方案编码进 URL，免后端）
 - PDF 装柜报告导出（含公司抬头、逐柜截图与步骤）
-- 6 语言界面：中文 / English / Español / 日本語 / 한국어 / Русский
+- 10 语言界面：中文 / English / Español / Português / Deutsch / Français / Tiếng Việt / 日本語 / 한국어 / Русский
 - 多语言 SEO 落地页（`seo/`，`gen_seo.js` 生成）
 - 响应式设计，手机可用
 
