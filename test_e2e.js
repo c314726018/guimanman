@@ -86,14 +86,17 @@ const { chromium } = require("playwright-core");
   const csvNames = await page.evaluate(() => goods.map(g => g.name).join(","));
   check("CSV 英文表头识别", csvNames.includes("Cardbox") && csvNames.includes("Crate"), csvNames);
 
-  /* 8. 立放限制（勾选后添加 + 算法朝向校验） */
+  /* 8. 立放限制（勾选后添加 → 自动计算） */
   await page.fill("#gName", "Drum");
   await page.fill("#gL", "60"); await page.fill("#gW", "40"); await page.fill("#gH", "80");
   await page.fill("#gQty", "50"); await page.fill("#gKg", "25");
   await page.check("#gUpright");
   await page.click("#btnAdd");
-  await page.click("#btnCalc");
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(1500); // 自动计算，无需点开始计算
+  const autoCalc = await page.evaluate(() => packResults && packResults.containers.some(c => c.placed.some(p => p.name === "Drum")));
+  check("添加后自动计算（无需手动点按钮）", autoCalc, "");
+  const emptyHidden = await page.evaluate(() => document.getElementById("emptyTip").style.display === "none");
+  check("添加货物后中央提示隐藏", emptyHidden, "");
   const rotBad = await page.evaluate(() => {
     const gi = goods.findIndex(g => g.name === "Drum");
     return packResults.containers.flatMap(c => c.placed).filter(p => p.gi === gi && Math.abs(p.L - 60) > 0.01).length;

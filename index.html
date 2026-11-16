@@ -72,6 +72,8 @@
   .empty-tip { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:15px; flex-direction:column; gap:8px; }
   .empty-tip .big { font-size:40px; }
 
+  .drag-hint { position:absolute; bottom:10px; right:12px; z-index:9; color:#64748b; font-size:11px; background:rgba(255,255,255,.85); padding:4px 10px; border-radius:10px; pointer-events:none; }
+
   /* 装载步骤面板 */
   .steps-panel { position:absolute; top:10px; right:12px; bottom:10px; width:320px; z-index:15; background:rgba(255,255,255,.97); border-radius:10px; box-shadow:0 4px 20px rgba(0,0,0,.18); padding:14px; overflow-y:auto; display:none; }
   .steps-panel.open { display:block; }
@@ -107,7 +109,7 @@
     .main { flex-direction:column; }
     .canvas-wrap { order:-1; min-height:44vh; flex:none; }
     .sidebar { width:100%; flex:1; order:1; border-right:none; border-top:1px solid #e2e5ea; }
-    .results { order:2; font-size:12px; padding:8px 10px; }
+    .results { order:0; background:#fff; border-top:1px solid #e2e5ea; padding:8px 10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; flex-shrink:0; min-height:44px; font-size:12px; }
     .chip { padding:4px 10px; }
     .steps-panel { width:min(320px, 86vw); }
   }
@@ -188,6 +190,7 @@
     <div class="empty-tip" id="emptyTip"><div class="big">📦</div><span id="emptyTipText">添加货物后点击「开始计算」</span></div>
     <div class="legend" id="legend" style="display:none"></div>
     <div class="toast" id="toast"></div>
+    <div class="drag-hint" id="dragHint"></div>
     <div class="steps-panel" id="stepsPanel">
       <h4><span id="stepsTitle">装载步骤</span><button class="close-x" id="stepsClose">✕</button></h4>
       <div id="stepsBody"></div>
@@ -195,13 +198,12 @@
   </div>
 </div>
 
-<div class="results" id="results">
-  <span class="msg" id="resultMsg">等待计算…</span>
-</div>
+<div class="results" id="results"></div>
 
 <script src="lib/three.min.js"></script>
 <script src="lib/OrbitControls.js"></script>
 <script src="lib/pack.js"></script>
+<script src="lib/importer.js"></script>
 <script src="lib/xlsx.full.min.js"></script>
 <script>
 "use strict";
@@ -244,7 +246,7 @@ const I18N = {
     cuLlb:"内长 (cm)", cuWlb:"内宽 (cm)", cuHlb:"内高 (cm)", cuPlb:"额定载重 (kg)",
     balTitle:"重量分布", balLR:"左右", balFB:"前后", sideL:"左", sideR:"右", sideF:"前", sideB:"后",
     balWarn:"⚠️ 偏载超过 60%，建议调整摆放",
-    pdfBtn:"导出 PDF", pdfCompany:"输入公司名称（用于报告抬头，可留空）：",
+    pdfBtn:"导出 PDF", dragHint:"拖动旋转 · 滚轮缩放 · 手势双指缩放", tDone:"✅ 计算完成", pdfCompany:"输入公司名称（用于报告抬头，可留空）：",
     rTitle:"装柜方案报告", rDate:"日期", rGoods:"货物清单", rSteps:"装载步骤", rNoSteps:"（无步骤）",
     contLabels:{ "20GP":"20尺柜 20GP", "40GP":"40尺柜 40GP", "40HC":"40尺高柜 40HC", "45HC":"45尺高柜 45HC" },
   },
@@ -272,7 +274,7 @@ const I18N = {
     cuLlb:"Internal L (cm)", cuWlb:"Internal W (cm)", cuHlb:"Internal H (cm)", cuPlb:"Max payload (kg)",
     balTitle:"Weight Distribution", balLR:"Left/Right", balFB:"Front/Rear", sideL:"L", sideR:"R", sideF:"F", sideB:"B",
     balWarn:"⚠️ Imbalance over 60% — consider rearranging",
-    pdfBtn:"Export PDF", pdfCompany:"Company name for report header (optional):",
+    pdfBtn:"Export PDF", dragHint:"Drag to rotate · Scroll to zoom · Pinch on mobile", tDone:"✅ Calculation complete", pdfCompany:"Company name for report header (optional):",
     rTitle:"Loading Plan Report", rDate:"Date", rGoods:"Cargo List", rSteps:"Loading Steps", rNoSteps:"(none)",
     contLabels:{ "20GP":"20ft Std 20GP", "40GP":"40ft Std 40GP", "40HC":"40ft High Cube 40HC", "45HC":"45ft High Cube 45HC" },
   },
@@ -300,7 +302,7 @@ const I18N = {
     cuLlb:"Largo int. (cm)", cuWlb:"Ancho int. (cm)", cuHlb:"Alto int. (cm)", cuPlb:"Carga máx. (kg)",
     balTitle:"Distribución de peso", balLR:"Izq/Der", balFB:"Frente/Atrás", sideL:"I", sideR:"D", sideF:"F", sideB:"A",
     balWarn:"⚠️ Desequilibrio superior al 60% — considere reorganizar",
-    pdfBtn:"Exportar PDF", pdfCompany:"Nombre de empresa para el encabezado (opcional):",
+    pdfBtn:"Exportar PDF", dragHint:"Arrastra para rotar · Rueda para zoom · Pellizca en móvil", tDone:"✅ Cálculo completado", pdfCompany:"Nombre de empresa para el encabezado (opcional):",
     rTitle:"Informe de plan de carga", rDate:"Fecha", rGoods:"Lista de carga", rSteps:"Pasos de carga", rNoSteps:"(ninguno)",
     contLabels:{ "20GP":"Contenedor 20ft 20GP", "40GP":"Contenedor 40ft 40GP", "40HC":"Contenedor 40ft HC 40HC", "45HC":"Contenedor 45ft HC 45HC" },
   },
@@ -328,7 +330,7 @@ const I18N = {
     cuLlb:"内法 長さ (cm)", cuWlb:"内法 幅 (cm)", cuHlb:"内法 高さ (cm)", cuPlb:"最大積載量 (kg)",
     balTitle:"重量配分", balLR:"左右", balFB:"前後", sideL:"左", sideR:"右", sideF:"前", sideB:"後",
     balWarn:"⚠️ 偏荷重60%超 — 積み直しをご検討ください",
-    pdfBtn:"PDF出力", pdfCompany:"報告書ヘッダーの会社名（任意）：",
+    pdfBtn:"PDF出力", dragHint:"ドラッグで回転 · ホイールでズーム · ピンチで拡大縮小", tDone:"✅ 計算完了", pdfCompany:"報告書ヘッダーの会社名（任意）：",
     rTitle:"積載計画報告書", rDate:"日付", rGoods:"貨物リスト", rSteps:"積載手順", rNoSteps:"（なし）",
     contLabels:{ "20GP":"20フィート 20GP", "40GP":"40フィート 40GP", "40HC":"40フィートハイキューブ 40HC", "45HC":"45フィートハイキューブ 45HC" },
   },
@@ -356,7 +358,7 @@ const I18N = {
     cuLlb:"내부 가로 (cm)", cuWlb:"내부 세로 (cm)", cuHlb:"내부 높이 (cm)", cuPlb:"최대 적재량 (kg)",
     balTitle:"중량 분포", balLR:"좌/우", balFB:"전/후", sideL:"좌", sideR:"우", sideF:"전", sideB:"후",
     balWarn:"⚠️ 편중 60% 초과 — 재배치를 권장합니다",
-    pdfBtn:"PDF 내보내기", pdfCompany:"보고서 헤더에 표시할 회사명（선택）：",
+    pdfBtn:"PDF 내보내기", dragHint:"드래그 회전 · 휠 줌 · 핀치줌", tDone:"✅ 계산 완료", pdfCompany:"보고서 헤더에 표시할 회사명（선택）：",
     rTitle:"적재 계획 보고서", rDate:"날짜", rGoods:"화물 목록", rSteps:"적재 순서", rNoSteps:"（없음）",
     contLabels:{ "20GP":"20피트 20GP", "40GP":"40피트 40GP", "40HC":"40피트 하이큐브 40HC", "45HC":"45피트 하이큐브 45HC" },
   },
@@ -384,7 +386,7 @@ const I18N = {
     cuLlb:"Внутр. длина (см)", cuWlb:"Внутр. ширина (см)", cuHlb:"Внутр. высота (см)", cuPlb:"Макс. загрузка (кг)",
     balTitle:"Распределение веса", balLR:"Лев/Прав", balFB:"Перед/Зад", sideL:"Л", sideR:"П", sideF:"Пд", sideB:"Зд",
     balWarn:"⚠️ Дисбаланс свыше 60% — рекомендуется перегруппировка",
-    pdfBtn:"Экспорт PDF", pdfCompany:"Название компании для шапки отчёта (необязательно):",
+    pdfBtn:"Экспорт PDF", dragHint:"Вращение — перетаскивание · масштаб — колесом", tDone:"✅ Расчёт завершён", pdfCompany:"Название компании для шапки отчёта (необязательно):",
     rTitle:"Отчёт о плане загрузки", rDate:"Дата", rGoods:"Список грузов", rSteps:"Порядок погрузки", rNoSteps:"(нет)",
     contLabels:{ "20GP":"20-фут. 20GP", "40GP":"40-фут. 40GP", "40HC":"40-фут. HC 40HC", "45HC":"45-фут. HC 45HC" },
   },
@@ -412,7 +414,7 @@ const I18N = {
     cuLlb:"Dài trong (cm)", cuWlb:"Rộng trong (cm)", cuHlb:"Cao trong (cm)", cuPlb:"Tải trọng tối đa (kg)",
     balTitle:"Phân bố trọng lượng", balLR:"Trái/Phải", balFB:"Trước/Sau", sideL:"T", sideR:"P", sideF:"Trước", sideB:"Sau",
     balWarn:"⚠️ Lệch tải quá 60% — nên sắp xếp lại",
-    pdfBtn:"Xuất PDF", pdfCompany:"Tên công ty in đầu báo cáo (không bắt buộc):",
+    pdfBtn:"Xuất PDF", dragHint:"Kéo để xoay · Cuộn để thu phóng · Chạm hai ngón", tDone:"✅ Đã tính xong", pdfCompany:"Tên công ty in đầu báo cáo (không bắt buộc):",
     rTitle:"Báo cáo phương án xếp container", rDate:"Ngày", rGoods:"Danh sách hàng", rSteps:"Trình tự xếp hàng", rNoSteps:"(không)",
     contLabels:{ "20GP":"20 feet 20GP", "40GP":"40 feet 40GP", "40HC":"40 feet High Cube 40HC", "45HC":"45 feet High Cube 45HC" },
   },
@@ -440,7 +442,7 @@ const I18N = {
     cuLlb:"Compr. interno (cm)", cuWlb:"Larg. interna (cm)", cuHlb:"Alt. interna (cm)", cuPlb:"Carga máx. (kg)",
     balTitle:"Distribuição de peso", balLR:"Esq/Dir", balFB:"Frente/Trás", sideL:"E", sideR:"D", sideF:"F", sideB:"T",
     balWarn:"⚠️ Desequilíbrio acima de 60% — considere reorganizar",
-    pdfBtn:"Exportar PDF", pdfCompany:"Nome da empresa para o cabeçalho do relatório (opcional):",
+    pdfBtn:"Exportar PDF", dragHint:"Arraste para girar · Role para ampliar · Pinça no celular", tDone:"✅ Cálculo concluído", pdfCompany:"Nome da empresa para o cabeçalho do relatório (opcional):",
     rTitle:"Relatório de plano de carga", rDate:"Data", rGoods:"Lista de carga", rSteps:"Etapas de carregamento", rNoSteps:"(nenhum)",
     contLabels:{ "20GP":"Contêiner 20ft 20GP", "40GP":"Contêiner 40ft 40GP", "40HC":"Contêiner 40ft HC 40HC", "45HC":"Contêiner 45ft HC 45HC" },
   },
@@ -468,7 +470,7 @@ const I18N = {
     cuLlb:"Innenlänge (cm)", cuWlb:"Innenbreite (cm)", cuHlb:"Innenhöhe (cm)", cuPlb:"Max. Nutzlast (kg)",
     balTitle:"Gewichtsverteilung", balLR:"Links/Rechts", balFB:"Vorne/Hinten", sideL:"L", sideR:"R", sideF:"V", sideB:"H",
     balWarn:"⚠️ Ungleichgewicht über 60% — Umladung erwägen",
-    pdfBtn:"PDF exportieren", pdfCompany:"Firmenname für den Berichtskopf (optional):",
+    pdfBtn:"PDF exportieren", dragHint:"Ziehen zum Drehen · Scrollen zum Zoomen · Pinch auf Mobil", tDone:"✅ Berechnung abgeschlossen", pdfCompany:"Firmenname für den Berichtskopf (optional):",
     rTitle:"Ladungsplan-Bericht", rDate:"Datum", rGoods:"Warenliste", rSteps:"Verladeschritte", rNoSteps:"(keine)",
     contLabels:{ "20GP":"20ft Standard 20GP", "40GP":"40ft Standard 40GP", "40HC":"40ft High Cube 40HC", "45HC":"45ft High Cube 45HC" },
   },
@@ -496,7 +498,7 @@ const I18N = {
     cuLlb:"Long. intérieure (cm)", cuWlb:"Larg. intérieure (cm)", cuHlb:"Haut. intérieure (cm)", cuPlb:"Charge max. (kg)",
     balTitle:"Répartition du poids", balLR:"Gauche/Droite", balFB:"Avant/Arrière", sideL:"G", sideR:"D", sideF:"Av", sideB:"Ar",
     balWarn:"⚠️ Déséquilibre supérieur à 60% — envisagez de réorganiser",
-    pdfBtn:"Exporter en PDF", pdfCompany:"Nom de l'entreprise pour l'en-tête du rapport (facultatif) :",
+    pdfBtn:"Exporter en PDF", dragHint:"Glissez pour pivoter · Molette pour zoomer · Pincer sur mobile", tDone:"✅ Calcul terminé", pdfCompany:"Nom de l'entreprise pour l'en-tête du rapport (facultatif) :",
     rTitle:"Rapport de plan de chargement", rDate:"Date", rGoods:"Liste du fret", rSteps:"Étapes de chargement", rNoSteps:"(aucun)",
     contLabels:{ "20GP":"Conteneur 20 pieds 20GP", "40GP":"Conteneur 40 pieds 40GP", "40HC":"Conteneur 40 pieds HC 40HC", "45HC":"Conteneur 45 pieds HC 45HC" },
   },
@@ -523,7 +525,7 @@ function getContainer() {
 }
 
 /* ============ 计算 ============ */
-function calc() {
+function calc(silent) {
   if (!goods.length) { toast(t().tNeedGoods); return; }
   const c = getContainer();
   showTip(t().calcing);
@@ -535,6 +537,7 @@ function calc() {
       renderScene();
       renderResults();
       if (document.getElementById("stepsPanel").classList.contains("open")) buildSteps();
+      if (!silent) toast(t().tDone);
     } catch (e) {
       console.error(e);
       toast(t().tCalcErr + e.message);
@@ -557,8 +560,7 @@ function renderResults() {
   const kgUtil = kg / c.payload * 100;
 
   let html = "";
-  if (cs.length > 1) html += chip(cs.length, t().needCont, cs.length > 1 ? "warn" : "good");
-  html += chip(volUtil.toFixed(1) + "%", t().volUtil, volUtil >= 75 ? "good" : "");
+  if (cs.length > 1) html += chip(cs.length, t().needCont, cs.length > 1 ? "warn" : "good");  html += chip(volUtil.toFixed(1) + "%", t().volUtil, volUtil >= 75 ? "good" : "");
   html += chip(totalBoxes, t().loadedN, "");
   html += chip(fmtKg(kg) + " kg", t().grossW, "");
   html += chip(kgUtil.toFixed(0) + "%", t().loadUse, kgUtil > 95 ? "warn" : "");
@@ -758,6 +760,7 @@ function applyI18n() {
   document.getElementById("lbStack").textContent = t().lbStack;
   document.getElementById("lbUpright").textContent = t().lbUpright;
   document.getElementById("stepsTitle").textContent = t().steps;
+  document.getElementById("dragHint").textContent = t().dragHint;
   document.getElementById("cuLlb").textContent = t().cuLlb;
   document.getElementById("cuWlb").textContent = t().cuWlb;
   document.getElementById("cuHlb").textContent = t().cuHlb;
@@ -783,8 +786,8 @@ function applyI18n() {
     '<option value="' + k + '"' + (k === cur ? " selected" : "") + '>' + t().contLabels[k] + '（' + CONTAINERS[k].l + '×' + CONTAINERS[k].w + '×' + CONTAINERS[k].h + ' cm）</option>').join("") +
     '<option value="custom"' + (cur === "custom" ? " selected" : "") + '>' + t().customLabel + '</option>';
   document.getElementById("customBox").classList.toggle("open", cur === "custom");
-  const rm = document.getElementById("resultMsg");
-  if (rm) rm.textContent = t().waiting;
+  const rm = document.getElementById("results");
+  if (rm && !packResults) rm.innerHTML = "";
   const gl = document.getElementById("goodsList");
   if (!goods.length && gl) gl.innerHTML = '<div class="hint">' + t().noGoods + '</div>';
 }
@@ -847,12 +850,29 @@ function addGoods() {
   document.getElementById("gStack").value = 5;
   document.getElementById("gUpright").checked = false;
   renderGoodsList();
+  calc(true); // 加完自动算，无需手动点按钮
 }
 
-function delGoods(i) { goods.splice(i, 1); renderGoodsList(); }
+function delGoods(i) {
+  goods.splice(i, 1);
+  renderGoodsList();
+  if (goods.length) calc(true);
+  else {
+    // 清空后回到初始预览态
+    packResults = null;
+    document.getElementById("results").innerHTML = "";
+    document.getElementById("containerTabs").innerHTML = "";
+    document.getElementById("stepsPanel").classList.remove("open");
+    document.getElementById("emptyTip").style.display = "flex";
+    renderPreview();
+  }
+}
 
 function renderGoodsList() {
   document.getElementById("goodsCount").textContent = goods.length;
+  // 有货物就隐藏中央提示，避免遮挡 3D 视图
+  if (goods.length) document.getElementById("emptyTip").style.display = "none";
+  else if (!packResults) document.getElementById("emptyTip").style.display = "flex";
   const el = document.getElementById("goodsList");
   if (!goods.length) { el.innerHTML = '<div class="hint">' + t().noGoods + '</div>'; return; }
   el.innerHTML = goods.map((g, i) =>
@@ -876,70 +896,12 @@ function loadSample() {
   calc();
 }
 
-/* ============ 导入 CSV / Excel / 粘贴 ============ */
-const HEADERS = {
-  name: ["name", "货品名称", "名称", "货品", "品名", "item", "description", "nombre", "品名", "품명", "название", "tên", "nome", "artikel", "nom"],
-  l: ["l", "length", "长", "长(cm)", "长cm", "largo", "長さ", "가로", "длина", "dài", "compr", "comprimento", "long", "länge", "longueur"],
-  w: ["w", "width", "宽", "寬", "宽(cm)", "ancho", "幅", "세로", "ширина", "rộng", "larg", "largura", "breite", "largeur"],
-  h: ["h", "height", "高", "高(cm)", "alto", "高さ", "높이", "высота", "cao", "alt", "altura", "haut", "höhe", "hauteur"],
-  qty: ["qty", "quantity", "件数", "数量", "pcs", "cantidad", "数量", "수량", "кол-во", "qtd", "số lượng", "menge", "quantité"],
-  kg: ["kg", "weight", "重量", "单件重量", "重量(kg)", "peso", "重量", "무게", "вес", "khối lượng", "gewicht", "poids"],
-  stack: ["stack", "maxstack", "堆叠", "层数", "堆叠层数", "maxstacklayers", "capas", "段数", "적층수", "слои", "camadas", "tầng", "số tầng", "stapel", "couches"],
-};
-function normKey(s) {
-  return String(s || "").toLowerCase().replace(/[\s()（）cmkg._-]/g, "");
-}
-function mapHeaders(row) {
-  const idx = {};
-  row.forEach((cell, i) => {
-    const n = normKey(cell);
-    for (const [key, aliases] of Object.entries(HEADERS)) {
-      if (aliases.some(a => normKey(a) === n)) idx[key] = i;
-    }
-  });
-  return idx;
-}
-function rowsToGoods(rows) {
-  if (!rows.length) return 0;
-  const idx = mapHeaders(rows[0]);
-  const hasHeader = ["l", "w", "h"].every(k => idx[k] !== undefined);
-  let n = 0;
-  const dataRows = hasHeader ? rows.slice(1) : rows;
-  const col = hasHeader ? idx : { name: 0, l: 1, w: 2, h: 3, qty: 4, kg: 5, stack: 6 };
-  for (const r of dataRows) {
-    const get = c => (r[c] !== undefined && r[c] !== null && r[c] !== "") ? +r[c] : NaN;
-    const l = get(col.l), w = get(col.w), h = get(col.h), qty = get(col.qty);
-    if (!(l > 0 && w > 0 && h > 0 && qty > 0)) continue;
-    const name = (r[col.name] !== undefined && String(r[col.name]).trim()) ? String(r[col.name]).trim() : (t().goodsName + (goodsSeq + 1));
-    goodsSeq++;
-    goods.push({ name, l, w, h, qty: Math.round(qty), kg: get(col.kg) || 0,
-      stack: (get(col.stack) > 0 ? Math.round(get(col.stack)) : 5),
-      color: PALETTE[(goodsSeq - 1) % PALETTE.length] });
-    n++;
-  }
-  return n;
-}
-
-function parseDelimited(text) {
-  const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  const rows = lines.map(line => {
-    const sep = line.includes("\t") ? "\t" : (line.includes(",") ? "," : /\s+/);
-    // 简单 CSV 引号支持
-    if (sep === ",") {
-      const out = [];
-      let cur = "", inQ = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') { inQ = !inQ; continue; }
-        if (ch === "," && !inQ) { out.push(cur); cur = ""; continue; }
-        cur += ch;
-      }
-      out.push(cur);
-      return out;
-    }
-    return line.split(sep);
-  });
-  return rows;
+/* ============ 导入（共享 lib/importer.js） ============ */
+function rowsToGoodsFromRows(rows) {
+  const r = ImportLib.rowsToGoods(rows, PALETTE, goodsSeq);
+  goods = goods.concat(r.goods);
+  goodsSeq = r.seq;
+  return r.goods.length;
 }
 
 function handleFile(file) {
@@ -950,12 +912,15 @@ function handleFile(file) {
     try {
       if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
         const wb = XLSX.read(e.target.result, { type: "array" });
-        rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: "" });
+        rows = [];
+        for (const sn of wb.SheetNames) {
+          rows = rows.concat(XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: "" }));
+          rows.push([]); // 表间分隔
+        }
       } else {
-        const text = e.target.result; // readAsText 已返回字符串
-        rows = parseDelimited(text);
+        rows = ImportLib.parseDelimited(e.target.result);
       }
-      const n = rowsToGoods(rows);
+      const n = rowsToGoodsFromRows(rows);
       if (n) { renderGoodsList(); calc(); toast(t().tImported(n)); }
       else toast(t().tPasteEmpty);
     } catch (err) {
@@ -969,7 +934,7 @@ function handleFile(file) {
 
 function importPaste() {
   const text = document.getElementById("pasteTa").value;
-  const n = rowsToGoods(parseDelimited(text));
+  const n = rowsToGoodsFromRows(ImportLib.parseDelimited(text));
   if (n) {
     document.getElementById("pasteBox").classList.remove("open");
     document.getElementById("pasteTa").value = "";
@@ -1059,6 +1024,7 @@ function initUI() {
       document.getElementById("cuP").value = customCont.payload;
     }
     updateContainerInfo();
+    if (goods.length) calc(true); // 换柜型自动重算
   };
   ["cuL", "cuW", "cuH", "cuP"].forEach(id => {
     document.getElementById(id).oninput = () => {
