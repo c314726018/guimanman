@@ -659,6 +659,8 @@ function calc(silent) {
   setTimeout(() => {
     try {
       let packGoods = goods.map(g => (sets > 1 && +g.perSet > 0) ? { ...g, qty: Math.round(g.perSet * sets) } : g);
+      const agg = PackLib.aggregate(packGoods, c);
+      if (agg.bundled) packGoods = agg.goods; // 大货量模式：同规格自动成捆
       if (usePallet) {
         const spec = { l: +document.getElementById("paL").value || 110,
                        w: +document.getElementById("paW").value || 110,
@@ -667,6 +669,7 @@ function calc(silent) {
         packGoods = PackLib.packPallets(goods, spec).pallets;
       }
       packResults = PackLib.packAll(packGoods, c, { gap });
+      packResults.agg = agg;
       currentContainerIdx = 0;
       renderTabs();
       renderScene();

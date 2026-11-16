@@ -14,6 +14,11 @@ function check(name, cond, detail) {
   else { fail++; console.log("  ❌ " + name + (detail ? "  " + detail : "")); }
 }
 
+if (!fs.existsSync("testdata/uganda.xlsx")) {
+  console.log("⚠️ testdata/uganda.xlsx 不存在（商业数据不入库），跳过真实数据测试");
+  console.log("✅ 跳过 0 项");
+  process.exit(0);
+}
 const wb = XLSX.read(fs.readFileSync("testdata/uganda.xlsx"), { type: "buffer" });
 const PALETTE = ["#3b82f6","#f59e0b","#10b981","#ef4444","#8b5cf6","#06b6d4","#ec4899","#84cc16","#f97316","#6366f1","#14b8a6","#a855f7"];
 let goods = [], seq = 0;
