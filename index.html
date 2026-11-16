@@ -130,6 +130,9 @@
   <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.txt" style="display:none">
   <button class="btn btn-ghost" id="btnSample">载入示例</button>
   <button class="btn btn-ghost" id="btnShare">分享链接</button>
+  <button class="btn btn-ghost" id="btnLogo">Logo</button>
+  <input type="file" id="logoInput" accept="image/*" style="display:none">
+  <button class="btn btn-ghost" id="btnSavePlan">保存方案</button>
   <button class="btn btn-ghost" id="btnSteps">装载步骤</button>
   <button class="btn btn-ghost" id="btnPdf">导出 PDF</button>
   <button class="btn btn-ghost" id="btnShot">导出截图</button>
@@ -165,7 +168,13 @@
         <label class="f"><span id="lbKg">单件重量 (kg)</span><input type="number" id="gKg" placeholder="10" min="0"></label>
         <label class="f"><span id="lbStack">最大堆叠层数</span><input type="number" id="gStack" value="5" min="1" max="20"></label>
       </div>
+      <div class="grid2">
+        <label class="f"><span id="lbMaxLoad">可承载重量 (kg)</span><input type="number" id="gMaxLoad" placeholder="不限" min="0"></label>
+        <label class="f"><span id="lbPriority">装载优先级</span><input type="number" id="gPriority" placeholder="0" min="0"></label>
+      </div>
       <label class="cb"><input type="checkbox" id="gUpright"><span id="lbUpright">禁止旋转（保持直立）</span></label>
+      <label class="cb"><input type="checkbox" id="gMustFloor"><span id="lbMustFloor">必须放底层</span></label>
+      <label class="cb"><input type="checkbox" id="gCyl"><span id="lbCyl">圆柱形（桶/管）</span></label>
       <button class="btn add-btn" id="btnAdd">＋ 添加货物</button>
       <div class="hint" id="stackHint"></div>
       <button class="btn mini-btn" id="btnPasteToggle">📋 粘贴导入</button>
@@ -180,8 +189,33 @@
     </div>
 
     <div class="sec">
+      <h3 id="hAdv">高级选项</h3>
+      <label class="f"><span id="gapLb">摆放间隙 (cm/件)</span><input type="number" id="advGap" value="0" min="0" step="0.5"></label>
+      <label class="cb" style="margin-top:10px"><input type="checkbox" id="palletChk"><span id="palletModeLb">打托模式（先码托盘再装柜）</span></label>
+      <div id="palletBox" style="display:none">
+        <div class="grid4">
+          <label class="f"><span id="paLlb">托盘长(cm)</span><input type="number" id="paL" value="110" min="1"></label>
+          <label class="f"><span id="paWlb">托盘宽(cm)</span><input type="number" id="paW" value="110" min="1"></label>
+          <label class="f"><span id="paHlb">限高(cm)</span><input type="number" id="paH" value="180" min="1"></label>
+          <label class="f"><span id="paPlb">限重(kg)</span><input type="number" id="paP" value="1000" min="1"></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
       <h3><span id="hList">货物清单</span>（<span id="goodsCount">0</span>）</h3>
       <div class="goods-list" id="goodsList"></div>
+    </div>
+
+    <div class="sec">
+      <h3 id="hPlans">我的方案</h3>
+      <div class="row">
+        <select id="planSel"></select>
+      </div>
+      <div class="grid2" style="margin-top:6px">
+        <button class="btn btn-ghost" id="btnLoadPlan" style="background:#eef2f7;color:#334155">载入</button>
+        <button class="btn btn-ghost" id="btnDelPlan" style="background:#eef2f7;color:#334155">删除</button>
+      </div>
     </div>
   </div>
 
@@ -246,7 +280,11 @@ const I18N = {
     cuLlb:"内长 (cm)", cuWlb:"内宽 (cm)", cuHlb:"内高 (cm)", cuPlb:"额定载重 (kg)",
     balTitle:"重量分布", balLR:"左右", balFB:"前后", sideL:"左", sideR:"右", sideF:"前", sideB:"后",
     balWarn:"⚠️ 偏载超过 60%，建议调整摆放",
-    pdfBtn:"导出 PDF", dragHint:"拖动旋转 · 滚轮缩放 · 手势双指缩放", tDone:"✅ 计算完成", pdfCompany:"输入公司名称（用于报告抬头，可留空）：",
+    pdfBtn:"导出 PDF", dragHint:"拖动旋转 · 滚轮缩放 · 手势双指缩放", tDone:"✅ 计算完成",
+    lbMaxLoad:"可承载重量 (kg)", lbPriority:"装载优先级(1最先)", lbMustFloor:"必须放底层", lbCyl:"圆柱形(桶/管)",
+    gapLb:"摆放间隙 (cm/件)", palletMode:"打托模式（先码托盘再装柜）", palletLl:"托盘长(cm)", palletWl:"托盘宽(cm)", palletHl:"限高(cm)", palletPl:"限重(kg)",
+     hAdv:"高级选项", savePlan:"保存方案", myPlans:"我的方案", btnLoadPlan:"载入", btnDelPlan:"删除", noPlans:"暂无方案",
+    planSaved:"✅ 方案已保存", planLoaded:"已载入方案", planDeleted:"已删除", planNamePrompt:"输入方案名称：", logoBtn:"Logo", pdfCompany:"输入公司名称（用于报告抬头，可留空）：",
     rTitle:"装柜方案报告", rDate:"日期", rGoods:"货物清单", rSteps:"装载步骤", rNoSteps:"（无步骤）",
     contLabels:{ "20GP":"20尺柜 20GP", "40GP":"40尺柜 40GP", "40HC":"40尺高柜 40HC", "45HC":"45尺高柜 45HC" },
   },
@@ -274,7 +312,11 @@ const I18N = {
     cuLlb:"Internal L (cm)", cuWlb:"Internal W (cm)", cuHlb:"Internal H (cm)", cuPlb:"Max payload (kg)",
     balTitle:"Weight Distribution", balLR:"Left/Right", balFB:"Front/Rear", sideL:"L", sideR:"R", sideF:"F", sideB:"B",
     balWarn:"⚠️ Imbalance over 60% — consider rearranging",
-    pdfBtn:"Export PDF", dragHint:"Drag to rotate · Scroll to zoom · Pinch on mobile", tDone:"✅ Calculation complete", pdfCompany:"Company name for report header (optional):",
+    pdfBtn:"Export PDF", dragHint:"Drag to rotate · Scroll to zoom · Pinch on mobile", tDone:"✅ Calculation complete",
+    lbMaxLoad:"Max load on top (kg)", lbPriority:"Load priority (1=first)", lbMustFloor:"Must be bottom layer", lbCyl:"Cylinder (barrel/pipe)",
+    gapLb:"Gap per item (cm)", palletMode:"Pallet mode (cartons on pallets first)", palletLl:"Pallet L (cm)", palletWl:"Pallet W (cm)", palletHl:"Max height (cm)", palletPl:"Max load (kg)",
+     hAdv:"Advanced", savePlan:"Save Plan", myPlans:"My Plans", btnLoadPlan:"Load", btnDelPlan:"Delete", noPlans:"No plans yet",
+    planSaved:"✅ Plan saved", planLoaded:"Plan loaded", planDeleted:"Deleted", planNamePrompt:"Plan name:", logoBtn:"Logo", pdfCompany:"Company name for report header (optional):",
     rTitle:"Loading Plan Report", rDate:"Date", rGoods:"Cargo List", rSteps:"Loading Steps", rNoSteps:"(none)",
     contLabels:{ "20GP":"20ft Std 20GP", "40GP":"40ft Std 40GP", "40HC":"40ft High Cube 40HC", "45HC":"45ft High Cube 45HC" },
   },
@@ -302,7 +344,11 @@ const I18N = {
     cuLlb:"Largo int. (cm)", cuWlb:"Ancho int. (cm)", cuHlb:"Alto int. (cm)", cuPlb:"Carga máx. (kg)",
     balTitle:"Distribución de peso", balLR:"Izq/Der", balFB:"Frente/Atrás", sideL:"I", sideR:"D", sideF:"F", sideB:"A",
     balWarn:"⚠️ Desequilibrio superior al 60% — considere reorganizar",
-    pdfBtn:"Exportar PDF", dragHint:"Arrastra para rotar · Rueda para zoom · Pellizca en móvil", tDone:"✅ Cálculo completado", pdfCompany:"Nombre de empresa para el encabezado (opcional):",
+    pdfBtn:"Exportar PDF", dragHint:"Arrastra para rotar · Rueda para zoom · Pellizca en móvil", tDone:"✅ Cálculo completado",
+    lbMaxLoad:"Carga máx. encima (kg)", lbPriority:"Prioridad (1=primero)", lbMustFloor:"Siempre en el fondo", lbCyl:"Cilindro (barril/tubo)",
+    gapLb:"Hueco por artículo (cm)", palletMode:"Modo paletizado", palletLl:"Largo palet (cm)", palletWl:"Ancho palet (cm)", palletHl:"Altura máx. (cm)", palletPl:"Carga máx. (kg)",
+     hAdv:"Opciones avanzadas", savePlan:"Guardar plan", myPlans:"Mis planes", btnLoadPlan:"Cargar", btnDelPlan:"Eliminar", noPlans:"Sin planes",
+    planSaved:"✅ Plan guardado", planLoaded:"Plan cargado", planDeleted:"Eliminado", planNamePrompt:"Nombre del plan:", logoBtn:"Logo", pdfCompany:"Nombre de empresa para el encabezado (opcional):",
     rTitle:"Informe de plan de carga", rDate:"Fecha", rGoods:"Lista de carga", rSteps:"Pasos de carga", rNoSteps:"(ninguno)",
     contLabels:{ "20GP":"Contenedor 20ft 20GP", "40GP":"Contenedor 40ft 40GP", "40HC":"Contenedor 40ft HC 40HC", "45HC":"Contenedor 45ft HC 45HC" },
   },
@@ -330,7 +376,11 @@ const I18N = {
     cuLlb:"内法 長さ (cm)", cuWlb:"内法 幅 (cm)", cuHlb:"内法 高さ (cm)", cuPlb:"最大積載量 (kg)",
     balTitle:"重量配分", balLR:"左右", balFB:"前後", sideL:"左", sideR:"右", sideF:"前", sideB:"後",
     balWarn:"⚠️ 偏荷重60%超 — 積み直しをご検討ください",
-    pdfBtn:"PDF出力", dragHint:"ドラッグで回転 · ホイールでズーム · ピンチで拡大縮小", tDone:"✅ 計算完了", pdfCompany:"報告書ヘッダーの会社名（任意）：",
+    pdfBtn:"PDF出力", dragHint:"ドラッグで回転 · ホイールでズーム · ピンチで拡大縮小", tDone:"✅ 計算完了",
+    lbMaxLoad:"耐荷重 (kg)", lbPriority:"積載優先度(1=先)", lbMustFloor:"必ず底層", lbCyl:"円柱(ドラム/パイプ)",
+    gapLb:"各品目の間隔 (cm)", palletMode:"パレットモード", palletLl:"パレット長(cm)", palletWl:"パレット幅(cm)", palletHl:"高さ上限(cm)", palletPl:"重量上限(kg)",
+     hAdv:"詳細設定", savePlan:"計画を保存", myPlans:"マイ計画", btnLoadPlan:"読込", btnDelPlan:"削除", noPlans:"計画なし",
+    planSaved:"✅ 保存しました", planLoaded:"読み込みました", planDeleted:"削除しました", planNamePrompt:"計画名：", logoBtn:"ロゴ", pdfCompany:"報告書ヘッダーの会社名（任意）：",
     rTitle:"積載計画報告書", rDate:"日付", rGoods:"貨物リスト", rSteps:"積載手順", rNoSteps:"（なし）",
     contLabels:{ "20GP":"20フィート 20GP", "40GP":"40フィート 40GP", "40HC":"40フィートハイキューブ 40HC", "45HC":"45フィートハイキューブ 45HC" },
   },
@@ -358,7 +408,11 @@ const I18N = {
     cuLlb:"내부 가로 (cm)", cuWlb:"내부 세로 (cm)", cuHlb:"내부 높이 (cm)", cuPlb:"최대 적재량 (kg)",
     balTitle:"중량 분포", balLR:"좌/우", balFB:"전/후", sideL:"좌", sideR:"우", sideF:"전", sideB:"후",
     balWarn:"⚠️ 편중 60% 초과 — 재배치를 권장합니다",
-    pdfBtn:"PDF 내보내기", dragHint:"드래그 회전 · 휠 줌 · 핀치줌", tDone:"✅ 계산 완료", pdfCompany:"보고서 헤더에 표시할 회사명（선택）：",
+    pdfBtn:"PDF 내보내기", dragHint:"드래그 회전 · 휠 줌 · 핀치줌", tDone:"✅ 계산 완료",
+    lbMaxLoad:"위 하중 한계 (kg)", lbPriority:"적재 우선순위(1=먼저)", lbMustFloor:"바닥층 필수", lbCyl:"원통형(드럼/파이프)",
+    gapLb:"품목 간 간격 (cm)", palletMode:"팔레트 모드", palletLl:"팔레트 가로(cm)", palletWl:"팔레트 세로(cm)", palletHl:"높이 한계(cm)", palletPl:"중량 한계(kg)",
+     hAdv:"고급 옵션", savePlan:"계획 저장", myPlans:"내 계획", btnLoadPlan:"불러오기", btnDelPlan:"삭제", noPlans:"계획 없음",
+    planSaved:"✅ 저장됨", planLoaded:"불러옴", planDeleted:"삭제됨", planNamePrompt:"계획 이름:", logoBtn:"로고", pdfCompany:"보고서 헤더에 표시할 회사명（선택）：",
     rTitle:"적재 계획 보고서", rDate:"날짜", rGoods:"화물 목록", rSteps:"적재 순서", rNoSteps:"（없음）",
     contLabels:{ "20GP":"20피트 20GP", "40GP":"40피트 40GP", "40HC":"40피트 하이큐브 40HC", "45HC":"45피트 하이큐브 45HC" },
   },
@@ -386,7 +440,11 @@ const I18N = {
     cuLlb:"Внутр. длина (см)", cuWlb:"Внутр. ширина (см)", cuHlb:"Внутр. высота (см)", cuPlb:"Макс. загрузка (кг)",
     balTitle:"Распределение веса", balLR:"Лев/Прав", balFB:"Перед/Зад", sideL:"Л", sideR:"П", sideF:"Пд", sideB:"Зд",
     balWarn:"⚠️ Дисбаланс свыше 60% — рекомендуется перегруппировка",
-    pdfBtn:"Экспорт PDF", dragHint:"Вращение — перетаскивание · масштаб — колесом", tDone:"✅ Расчёт завершён", pdfCompany:"Название компании для шапки отчёта (необязательно):",
+    pdfBtn:"Экспорт PDF", dragHint:"Вращение — перетаскивание · масштаб — колесом", tDone:"✅ Расчёт завершён",
+    lbMaxLoad:"Нагрузка сверху (кг)", lbPriority:"Приоритет (1=первый)", lbMustFloor:"Только на дно", lbCyl:"Цилиндр (бочка/труба)",
+    gapLb:"Зазор на предмет (см)", palletMode:"Паллетный режим", palletLl:"Длина паллета (см)", palletWl:"Ширина паллета (см)", palletHl:"Макс. высота (см)", palletPl:"Макс. вес (кг)",
+     hAdv:"Дополнительно", savePlan:"Сохранить план", myPlans:"Мои планы", btnLoadPlan:"Загрузить", btnDelPlan:"Удалить", noPlans:"Планов нет",
+    planSaved:"✅ Сохранено", planLoaded:"Загружено", planDeleted:"Удалено", planNamePrompt:"Название плана:", logoBtn:"Логотип", pdfCompany:"Название компании для шапки отчёта (необязательно):",
     rTitle:"Отчёт о плане загрузки", rDate:"Дата", rGoods:"Список грузов", rSteps:"Порядок погрузки", rNoSteps:"(нет)",
     contLabels:{ "20GP":"20-фут. 20GP", "40GP":"40-фут. 40GP", "40HC":"40-фут. HC 40HC", "45HC":"45-фут. HC 45HC" },
   },
@@ -414,7 +472,11 @@ const I18N = {
     cuLlb:"Dài trong (cm)", cuWlb:"Rộng trong (cm)", cuHlb:"Cao trong (cm)", cuPlb:"Tải trọng tối đa (kg)",
     balTitle:"Phân bố trọng lượng", balLR:"Trái/Phải", balFB:"Trước/Sau", sideL:"T", sideR:"P", sideF:"Trước", sideB:"Sau",
     balWarn:"⚠️ Lệch tải quá 60% — nên sắp xếp lại",
-    pdfBtn:"Xuất PDF", dragHint:"Kéo để xoay · Cuộn để thu phóng · Chạm hai ngón", tDone:"✅ Đã tính xong", pdfCompany:"Tên công ty in đầu báo cáo (không bắt buộc):",
+    pdfBtn:"Xuất PDF", dragHint:"Kéo để xoay · Cuộn để thu phóng · Chạm hai ngón", tDone:"✅ Đã tính xong",
+    lbMaxLoad:"Tải trọng chịu phía trên (kg)", lbPriority:"Ưu tiên xếp (1=trước)", lbMustFloor:"Bắt buộc đáy", lbCyl:"Hình trụ (thùng/ống)",
+    gapLb:"Khe hở mỗi món (cm)", palletMode:"Chế độ pallet", palletLl:"Dài pallet (cm)", palletWl:"Rộng pallet (cm)", palletHl:"Giới hạn cao (cm)", palletPl:"Giới hạn nặng (kg)",
+     hAdv:"Nâng cao", savePlan:"Lưu phương án", myPlans:"Phương án của tôi", btnLoadPlan:"Mở", btnDelPlan:"Xóa", noPlans:"Chưa có",
+    planSaved:"✅ Đã lưu", planLoaded:"Đã mở", planDeleted:"Đã xóa", planNamePrompt:"Tên phương án:", logoBtn:"Logo", pdfCompany:"Tên công ty in đầu báo cáo (không bắt buộc):",
     rTitle:"Báo cáo phương án xếp container", rDate:"Ngày", rGoods:"Danh sách hàng", rSteps:"Trình tự xếp hàng", rNoSteps:"(không)",
     contLabels:{ "20GP":"20 feet 20GP", "40GP":"40 feet 40GP", "40HC":"40 feet High Cube 40HC", "45HC":"45 feet High Cube 45HC" },
   },
@@ -442,7 +504,11 @@ const I18N = {
     cuLlb:"Compr. interno (cm)", cuWlb:"Larg. interna (cm)", cuHlb:"Alt. interna (cm)", cuPlb:"Carga máx. (kg)",
     balTitle:"Distribuição de peso", balLR:"Esq/Dir", balFB:"Frente/Trás", sideL:"E", sideR:"D", sideF:"F", sideB:"T",
     balWarn:"⚠️ Desequilíbrio acima de 60% — considere reorganizar",
-    pdfBtn:"Exportar PDF", dragHint:"Arraste para girar · Role para ampliar · Pinça no celular", tDone:"✅ Cálculo concluído", pdfCompany:"Nome da empresa para o cabeçalho do relatório (opcional):",
+    pdfBtn:"Exportar PDF", dragHint:"Arraste para girar · Role para ampliar · Pinça no celular", tDone:"✅ Cálculo concluído",
+    lbMaxLoad:"Carga máx. encima (kg)", lbPriority:"Prioridade (1=primeiro)", lbMustFloor:"Sempre no fundo", lbCyl:"Cilindro (barril/tubo)",
+    gapLb:"Folga por item (cm)", palletMode:"Modo paletizado", palletLl:"Compr. palete (cm)", palletWl:"Larg. palete (cm)", palletHl:"Altura máx. (cm)", palletPl:"Carga máx. (kg)",
+     hAdv:"Opções avançadas", savePlan:"Salvar plano", myPlans:"Meus planos", btnLoadPlan:"Carregar", btnDelPlan:"Excluir", noPlans:"Sem planos",
+    planSaved:"✅ Plano salvo", planLoaded:"Plano carregado", planDeleted:"Excluído", planNamePrompt:"Nome do plano:", logoBtn:"Logo", pdfCompany:"Nome da empresa para o cabeçalho do relatório (opcional):",
     rTitle:"Relatório de plano de carga", rDate:"Data", rGoods:"Lista de carga", rSteps:"Etapas de carregamento", rNoSteps:"(nenhum)",
     contLabels:{ "20GP":"Contêiner 20ft 20GP", "40GP":"Contêiner 40ft 40GP", "40HC":"Contêiner 40ft HC 40HC", "45HC":"Contêiner 45ft HC 45HC" },
   },
@@ -470,7 +536,11 @@ const I18N = {
     cuLlb:"Innenlänge (cm)", cuWlb:"Innenbreite (cm)", cuHlb:"Innenhöhe (cm)", cuPlb:"Max. Nutzlast (kg)",
     balTitle:"Gewichtsverteilung", balLR:"Links/Rechts", balFB:"Vorne/Hinten", sideL:"L", sideR:"R", sideF:"V", sideB:"H",
     balWarn:"⚠️ Ungleichgewicht über 60% — Umladung erwägen",
-    pdfBtn:"PDF exportieren", dragHint:"Ziehen zum Drehen · Scrollen zum Zoomen · Pinch auf Mobil", tDone:"✅ Berechnung abgeschlossen", pdfCompany:"Firmenname für den Berichtskopf (optional):",
+    pdfBtn:"PDF exportieren", dragHint:"Ziehen zum Drehen · Scrollen zum Zoomen · Pinch auf Mobil", tDone:"✅ Berechnung abgeschlossen",
+    lbMaxLoad:"Traglast oben (kg)", lbPriority:"Ladepriorität (1=zuerst)", lbMustFloor:"Nur Bodenlage", lbCyl:"Zylinder (Fass/Rohr)",
+    gapLb:"Spalt pro Artikel (cm)", palletMode:"Palettenmodus", palletLl:"Palette L (cm)", palletWl:"Palette B (cm)", palletHl:"Max. Höhe (cm)", palletPl:"Max. Gewicht (kg)",
+     hAdv:"Erweitert", savePlan:"Plan speichern", myPlans:"Meine Pläne", btnLoadPlan:"Laden", btnDelPlan:"Löschen", noPlans:"Keine Pläne",
+    planSaved:"✅ Gespeichert", planLoaded:"Geladen", planDeleted:"Gelöscht", planNamePrompt:"Planname:", logoBtn:"Logo", pdfCompany:"Firmenname für den Berichtskopf (optional):",
     rTitle:"Ladungsplan-Bericht", rDate:"Datum", rGoods:"Warenliste", rSteps:"Verladeschritte", rNoSteps:"(keine)",
     contLabels:{ "20GP":"20ft Standard 20GP", "40GP":"40ft Standard 40GP", "40HC":"40ft High Cube 40HC", "45HC":"45ft High Cube 45HC" },
   },
@@ -498,7 +568,11 @@ const I18N = {
     cuLlb:"Long. intérieure (cm)", cuWlb:"Larg. intérieure (cm)", cuHlb:"Haut. intérieure (cm)", cuPlb:"Charge max. (kg)",
     balTitle:"Répartition du poids", balLR:"Gauche/Droite", balFB:"Avant/Arrière", sideL:"G", sideR:"D", sideF:"Av", sideB:"Ar",
     balWarn:"⚠️ Déséquilibre supérieur à 60% — envisagez de réorganiser",
-    pdfBtn:"Exporter en PDF", dragHint:"Glissez pour pivoter · Molette pour zoomer · Pincer sur mobile", tDone:"✅ Calcul terminé", pdfCompany:"Nom de l'entreprise pour l'en-tête du rapport (facultatif) :",
+    pdfBtn:"Exporter en PDF", dragHint:"Glissez pour pivoter · Molette pour zoomer · Pincer sur mobile", tDone:"✅ Calcul terminé",
+    lbMaxLoad:"Charge supportée dessus (kg)", lbPriority:"Priorité (1=premier)", lbMustFloor:"Toujours au fond", lbCyl:"Cylindre (fût/tuyau)",
+    gapLb:"Espace par article (cm)", palletMode:"Mode palettes", palletLl:"Long. palette (cm)", palletWl:"Larg. palette (cm)", palletHl:"Hauteur max. (cm)", palletPl:"Charge max. (kg)",
+     hAdv:"Options avancées", savePlan:"Sauver le plan", myPlans:"Mes plans", btnLoadPlan:"Charger", btnDelPlan:"Supprimer", noPlans:"Aucun plan",
+    planSaved:"✅ Sauvegardé", planLoaded:"Chargé", planDeleted:"Supprimé", planNamePrompt:"Nom du plan :", logoBtn:"Logo", pdfCompany:"Nom de l'entreprise pour l'en-tête du rapport (facultatif) :",
     rTitle:"Rapport de plan de chargement", rDate:"Date", rGoods:"Liste du fret", rSteps:"Étapes de chargement", rNoSteps:"(aucun)",
     contLabels:{ "20GP":"Conteneur 20 pieds 20GP", "40GP":"Conteneur 40 pieds 40GP", "40HC":"Conteneur 40 pieds HC 40HC", "45HC":"Conteneur 45 pieds HC 45HC" },
   },
@@ -528,10 +602,20 @@ function getContainer() {
 function calc(silent) {
   if (!goods.length) { toast(t().tNeedGoods); return; }
   const c = getContainer();
+  const gap = +document.getElementById("advGap").value || 0;
+  const usePallet = document.getElementById("palletChk").checked;
   showTip(t().calcing);
   setTimeout(() => {
     try {
-      packResults = PackLib.packAll(goods, c);
+      let packGoods = goods;
+      if (usePallet) {
+        const spec = { l: +document.getElementById("paL").value || 110,
+                       w: +document.getElementById("paW").value || 110,
+                       h: +document.getElementById("paH").value || 180,
+                       payload: +document.getElementById("paP").value || 1000 };
+        packGoods = PackLib.packPallets(goods, spec).pallets;
+      }
+      packResults = PackLib.packAll(packGoods, c, { gap });
       currentContainerIdx = 0;
       renderTabs();
       renderScene();
@@ -667,12 +751,20 @@ function buildContainerFrame(c) {
 function buildBoxes(placed) {
   const group = new THREE.Group();
   for (const p of placed) {
-    const geo = new THREE.BoxGeometry(p.L, p.H, p.W);
+    let geo, edgeGeo;
+    if (p.cylinder) {
+      const rx = Math.min(p.L, p.W) / 2;
+      geo = new THREE.CylinderGeometry(rx, rx, p.H, 24);
+      edgeGeo = new THREE.EdgesGeometry(geo, 30);
+    } else {
+      geo = new THREE.BoxGeometry(p.L, p.H, p.W);
+      edgeGeo = new THREE.EdgesGeometry(geo);
+    }
     const mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(p.color), transparent: true, opacity: 0.92 });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(p.x + p.L / 2, p.z + p.H / 2, p.y + p.W / 2);
     group.add(mesh);
-    const edge = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0x1e293b }));
+    const edge = new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: 0x1e293b }));
     edge.position.copy(mesh.position);
     group.add(edge);
   }
@@ -758,6 +850,22 @@ function applyI18n() {
   document.getElementById("lbQty").textContent = t().lbQty;
   document.getElementById("lbKg").textContent = t().lbKg;
   document.getElementById("lbStack").textContent = t().lbStack;
+  document.getElementById("lbMaxLoad").textContent = t().lbMaxLoad;
+  document.getElementById("lbPriority").textContent = t().lbPriority;
+  document.getElementById("lbMustFloor").textContent = t().lbMustFloor;
+  document.getElementById("lbCyl").textContent = t().lbCyl;
+  document.getElementById("hAdv").textContent = "⚙️ " + t().hAdv;
+  document.getElementById("gapLb").textContent = t().gapLb;
+  document.getElementById("palletModeLb").textContent = t().palletMode;
+  document.getElementById("paLlb").textContent = t().palletLl;
+  document.getElementById("paWlb").textContent = t().palletWl;
+  document.getElementById("paHlb").textContent = t().palletHl;
+  document.getElementById("paPlb").textContent = t().palletPl;
+  document.getElementById("hPlans").textContent = t().myPlans;
+  document.getElementById("btnLoadPlan").textContent = t().btnLoadPlan;
+  document.getElementById("btnDelPlan").textContent = t().btnDelPlan;
+  document.getElementById("btnSavePlan").textContent = t().savePlan;
+  document.getElementById("btnLogo").textContent = t().logoBtn;
   document.getElementById("lbUpright").textContent = t().lbUpright;
   document.getElementById("stepsTitle").textContent = t().steps;
   document.getElementById("dragHint").textContent = t().dragHint;
@@ -772,6 +880,7 @@ function applyI18n() {
   document.getElementById("btnPasteCancel").textContent = t().pasteCancel;
   document.getElementById("pasteHint").textContent = t().pasteHint;
   document.getElementById("gName").placeholder = t().phName;
+  renderPlanSel();
   document.getElementById("emptyTipText").textContent = t().emptyTip;
   // 语言/单位选择器
   document.getElementById("langSel").innerHTML = LANGS.map(([k, label]) =>
@@ -841,14 +950,20 @@ function addGoods() {
   const l = toCm(+document.getElementById("gL").value), w = toCm(+document.getElementById("gW").value),
         h = toCm(+document.getElementById("gH").value), qty = +document.getElementById("gQty").value,
         kg = +document.getElementById("gKg").value || 0, stack = +document.getElementById("gStack").value || 5,
-        upright = document.getElementById("gUpright").checked;
+        upright = document.getElementById("gUpright").checked,
+        maxLoad = +document.getElementById("gMaxLoad").value || 0,
+        priority = +document.getElementById("gPriority").value || 0,
+        mustFloor = document.getElementById("gMustFloor").checked,
+        cylinder = document.getElementById("gCyl").checked;
   if (!(l > 0 && w > 0 && h > 0)) { toast(t().tFillDims); return; }
   if (!(qty > 0)) { toast(t().tNeedQty); return; }
   goodsSeq++;
-  goods.push({ name, l, w, h, qty, kg, stack, upright, color: PALETTE[(goodsSeq - 1) % PALETTE.length] });
-  ["gName", "gL", "gW", "gH", "gQty", "gKg"].forEach(id => document.getElementById(id).value = "");
+  goods.push({ name, l, w, h, qty, kg, stack, upright, maxLoad, priority, mustFloor, cylinder, color: PALETTE[(goodsSeq - 1) % PALETTE.length] });
+  ["gName", "gL", "gW", "gH", "gQty", "gKg", "gMaxLoad", "gPriority"].forEach(id => document.getElementById(id).value = "");
   document.getElementById("gStack").value = 5;
   document.getElementById("gUpright").checked = false;
+  document.getElementById("gMustFloor").checked = false;
+  document.getElementById("gCyl").checked = false;
   renderGoodsList();
   calc(true); // 加完自动算，无需手动点按钮
 }
@@ -880,7 +995,7 @@ function renderGoodsList() {
     '<div class="info"><div class="name">' + esc(g.name) + '</div>' +
     '<div class="dim">' + dispCm(g.l) + '×' + dispCm(g.w) + '×' + dispCm(g.h) + ' ' + (unit === "in" ? "in" : t().dimUnit) +
     ' ｜ ' + g.qty + ' ' + t().pcs + ' ｜ ' + g.kg + t().kgEach + ' ｜ ' + t().stackN(g.stack) +
-    (g.upright ? ' ｜ ⬆' + t().upYes : '') + '</div></div>' +    '<button class="del" data-i="' + i + '">✕</button></div>').join("");
+    (g.upright ? ' ｜ ⬆' + t().upYes : '') + (g.cylinder ? ' ⛽' : '') + (g.mustFloor ? ' ⬇' : '') + '</div></div>' +    '<button class="del" data-i="' + i + '">✕</button></div>').join("");
   el.querySelectorAll(".del").forEach(b => b.onclick = () => delGoods(+b.dataset.i));
 }
 
@@ -942,6 +1057,72 @@ function importPaste() {
     calc();
     toast(t().tImported(n));
   } else toast(t().tPasteEmpty);
+}
+
+/* ============ 本地方案库（localStorage） ============ */
+function getPlans() { try { return JSON.parse(localStorage.getItem("zc_plans") || "[]"); } catch (e) { return []; } }
+function savePlan() {
+  if (!goods.length) { toast(t().tNeedGoods); return; }
+  const name = prompt(t().planNamePrompt) || ("Plan " + new Date().toLocaleString());
+  const plans = getPlans();
+  plans.unshift({ name, date: Date.now(),
+    data: { c: document.getElementById("containerSel").value, u: unit, g: goods.map(g => ({...g})),
+            cd: document.getElementById("containerSel").value === "custom" ? [customCont.l, customCont.w, customCont.h, customCont.payload] : null,
+            gap: +document.getElementById("advGap").value || 0,
+            pal: { on: document.getElementById("palletChk").checked,
+                   l: +document.getElementById("paL").value, w: +document.getElementById("paW").value,
+                   h: +document.getElementById("paH").value, p: +document.getElementById("paP").value } } });
+  localStorage.setItem("zc_plans", JSON.stringify(plans.slice(0, 50)));
+  renderPlanSel();
+  toast(t().planSaved);
+}
+function loadPlan(i) {
+  const plans = getPlans();
+  const p = plans[i];
+  if (!p) return;
+  const d = p.data;
+  unit = d.u || "cm";
+  if (d.c === "custom" && d.cd) {
+    customCont = { l: +d.cd[0] || 600, w: +d.cd[1] || 235, h: +d.cd[2] || 240, payload: +d.cd[3] || 20000 };
+    document.getElementById("containerSel").value = "custom";
+  } else if (d.c && CONTAINERS[d.c]) document.getElementById("containerSel").value = d.c;
+  goods = (d.g || []).map((g, i2) => ({ ...g, color: PALETTE[i2 % PALETTE.length] }));
+  goodsSeq = goods.length;
+  document.getElementById("advGap").value = d.gap || 0;
+  if (d.pal) {
+    document.getElementById("palletChk").checked = !!d.pal.on;
+    if (d.pal.l) { document.getElementById("paL").value = d.pal.l; document.getElementById("paW").value = d.pal.w;
+      document.getElementById("paH").value = d.pal.h; document.getElementById("paP").value = d.pal.p; }
+  }
+  document.getElementById("palletBox").style.display = document.getElementById("palletChk").checked ? "block" : "none";
+  refreshAll();
+  if (goods.length) calc(true);
+  toast(t().planLoaded);
+}
+function delPlan(i) {
+  const plans = getPlans();
+  plans.splice(i, 1);
+  localStorage.setItem("zc_plans", JSON.stringify(plans));
+  renderPlanSel();
+  toast(t().planDeleted);
+}
+function renderPlanSel() {
+  const el = document.getElementById("planSel");
+  if (!el) return;
+  const plans = getPlans();
+  el.innerHTML = plans.length
+    ? plans.map((p, i) => '<option value="' + i + '">' + esc(p.name) + '</option>').join("")
+    : '<option value="">' + t().noPlans + '</option>';
+}
+
+/* ============ Logo 上传 ============ */
+function handleLogo(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    localStorage.setItem("zc_logo", e.target.result);
+    toast(t().planSaved);
+  };
+  reader.readAsDataURL(file);
 }
 
 /* ============ 分享链接 ============ */
@@ -1040,6 +1221,20 @@ function initUI() {
   document.getElementById("btnSteps").onclick = () => toggleSteps();
   document.getElementById("stepsClose").onclick = () => toggleSteps(false);
   document.getElementById("btnPdf").onclick = exportPdf;
+  document.getElementById("btnSavePlan").onclick = savePlan;
+  document.getElementById("btnLogo").onclick = () => document.getElementById("logoInput").click();
+  document.getElementById("logoInput").onchange = e => { if (e.target.files.length) handleLogo(e.target.files[0]); e.target.value = ""; };
+  document.getElementById("planSel").onchange = e => { if (e.target.value !== "") loadPlan(+e.target.value); };
+  document.getElementById("btnLoadPlan").onclick = () => { const v = +document.getElementById("planSel").value; if (getPlans()[v]) loadPlan(v); };
+  document.getElementById("btnDelPlan").onclick = () => { const v = +document.getElementById("planSel").value; if (getPlans()[v]) delPlan(v); };
+  document.getElementById("advGap").oninput = () => { if (goods.length) calc(true); };
+  document.getElementById("palletChk").onchange = () => {
+    document.getElementById("palletBox").style.display = document.getElementById("palletChk").checked ? "block" : "none";
+    if (goods.length) calc(true);
+  };
+  ["paL", "paW", "paH", "paP"].forEach(id => {
+    document.getElementById(id).oninput = () => { if (goods.length && document.getElementById("palletChk").checked) calc(true); };
+  });
   document.getElementById("btnAdd").onclick = addGoods;
   document.getElementById("btnCalc").onclick = calc;
   document.getElementById("btnSample").onclick = loadSample;
@@ -1123,6 +1318,7 @@ function openReport(company, shots) {
     '<td>' + g.qty + '</td><td>' + g.kg + '</td><td>' + g.stack + '</td><td>' + (g.upright ? t().upYes : "-") + '</td></tr>').join("");
   const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + esc(t().rTitle) + '</title><style>' +
     'body{font-family:-apple-system,"PingFang SC",sans-serif;color:#1a1a1a;margin:32px;max-width:900px}' +
+    '.logo{max-height:56px;margin-bottom:8px}' +
     'h1{font-size:22px;border-bottom:3px solid #2563eb;padding-bottom:8px}' +
     '.co{font-size:13px;color:#64748b}.cont{page-break-inside:avoid;margin:24px 0;border:1px solid #e2e5ea;border-radius:8px;padding:16px}' +
     '.cont h2{font-size:16px;margin:0 0 8px}.shot{width:100%;max-width:640px;border:1px solid #e2e5ea;border-radius:4px}' +
@@ -1130,6 +1326,7 @@ function openReport(company, shots) {
     'table{border-collapse:collapse;width:100%;font-size:12px;margin:12px 0}' +
     'th,td{border:1px solid #d3d9e2;padding:5px 8px;text-align:left}th{background:#f0f3f8}' +
     '@media print{body{margin:12mm}}</style></head><body>' +
+    (localStorage.getItem("zc_logo") ? '<img class="logo" src="' + localStorage.getItem("zc_logo") + '"><br>' : '') +
     (company ? '<div class="co"><b style="font-size:16px;color:#1a1a1a">' + esc(company) + '</b></div>' : '') +
     '<h1>📦 ' + esc(t().rTitle) + '</h1>' +
     '<p class="co">' + t().rDate + ': ' + date + ' ｜ ' + esc(t().contLabels ? "" : "") +

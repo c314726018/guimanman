@@ -137,6 +137,42 @@ const { chromium } = require("playwright-core");
   });
   check("自定义柜 400×200×200 内全部合规", inBounds, "");
 
+  /* 11b. 摆放间隙 */
+  await page.evaluate(() => { document.getElementById("advGap").value = "5"; document.getElementById("advGap").dispatchEvent(new Event("input")); });
+  await page.waitForTimeout(1500);
+  const gapBox = await page.evaluate(() => {
+    const placed = packResults.containers.flatMap(c => c.placed);
+    const g = goods.find(x => x.name === "Cardbox");
+    const p = placed.find(x => x.gi === goods.indexOf(g));
+    return p ? p.L : -1;
+  });
+  check("间隙 5cm 生效（60→65）", Math.abs(gapBox - 65) < 0.01, String(gapBox));
+  await page.evaluate(() => { document.getElementById("advGap").value = "0"; document.getElementById("advGap").dispatchEvent(new Event("input")); });
+  await page.waitForTimeout(1200);
+
+  /* 11c. 打托模式 */
+  await page.click("#palletChk");
+  await page.waitForTimeout(1500);
+  const pallets = await page.evaluate(() => packResults.containers.flatMap(c => c.placed).filter(p => /Pallet/.test(p.name)).length);
+  check("打托模式生效（出现 Pallet 项）", pallets > 0, pallets + " 托");
+  await page.click("#palletChk");
+  await page.waitForTimeout(1200);
+
+  /* 11d. 本地方案库 */
+  page.on("dialog", d => d.accept("TestPlan"));
+  await page.click("#btnSavePlan");
+  await page.waitForTimeout(500);
+  const planN = await page.evaluate(() => JSON.parse(localStorage.getItem("zc_plans") || "[]").length);
+  check("方案已保存到本地", planN === 1, String(planN));
+  await page.reload({ waitUntil: "networkidle" });
+  const planOpts = await page.locator("#planSel option").count();
+  check("刷新后方案库仍在", planOpts >= 1, String(planOpts));
+  await page.selectOption("#planSel", "0");
+  await page.waitForTimeout(1500);
+  const loaded = await page.evaluate(() => goods.length);
+  check("方案载入恢复货物", loaded === 6, String(loaded));
+  await page.evaluate(() => localStorage.removeItem("zc_plans"));
+
   /* 12. PDF 导出（stub window.open 验证调用） */
   await page.evaluate(() => { window.__pdfOpened = false; window.open = () => { window.__pdfOpened = true; return { document: { write() {}, close() {} }, print() {} }; }; });
   await page.click("#btnPdf");
