@@ -6,6 +6,19 @@
 <title>柜满满 — 免费装柜计算器｜集装箱装载优化</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
 <style>
+  /* 公告条（可关闭，类即梦顶部样式） */
+  #annBar { display:none; align-items:center; gap:10px; padding:8px 16px; flex-shrink:0;
+            background:linear-gradient(90deg,#dff3e9,#e8f6ee 55%,#f0faf4); border-bottom:1px solid #d3ecdf;
+            font-size:12.5px; color:#14532d; overflow:hidden; }
+  #annBar.show { display:flex; }
+  #annBar .a-tag { background:rgba(26,154,92,.14); color:#178550; border-radius:999px; padding:2px 9px; font-size:11px; font-weight:700; white-space:nowrap; }
+  #annBar .a-text { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #annBar .a-cta { background:#1a9a5c; color:#fff; border-radius:999px; padding:4px 14px; font-size:12px; text-decoration:none; font-weight:600; white-space:nowrap; }
+  #annBar .a-cta:hover { background:#178550; }
+  #annBar .a-close { background:none; border:none; color:#6b7280; font-size:15px; cursor:pointer; padding:2px 6px; }
+  #annBar .a-close:hover { color:#313131; }
+  @media (max-width: 900px) { #annBar .a-tag { display:none; } #annBar { padding:7px 10px; font-size:12px; } }
+
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { height:100%; }
   body { font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:#f6f7f8; color:#313131; display:flex; flex-direction:column; overflow:hidden; }
@@ -139,6 +152,7 @@
 </style>
 </head>
 <body>
+<div id="annBar"></div>
 <header>
   <h1 id="hTitle">📦 柜满满</h1>
   <span class="tag" id="tagFree">免费</span>
@@ -626,6 +640,32 @@ const I18N = {
 if (window.I18N_EXTRA) Object.assign(I18N, window.I18N_EXTRA);
 if (window.LANGS_EXTRA) for (const l of window.LANGS_EXTRA) if (!LANGS.some(x => x[0] === l[0])) LANGS.push(l);
 
+/* ============ 公告条（改 id 即可发布新公告，关闭状态按 id 记忆） ============ */
+const ANNOUNCEMENT = {
+  id: "v7-20261116",
+  zh: "🎉 v7 上线：手动拖拽微调 · 大货量自动成捆 · 空运 ULD · 25 种语言",
+  en: "🎉 v7 released: drag-to-adjust · auto-bundling for bulk cargo · air ULD presets · 25 languages",
+  tags: ["NEW", "FREE"],
+  cta: { zh: "立即体验", en: "Try it now", href: "https://github.com/c314726018/guimanman#readme" },
+};
+function renderAnnouncement() {
+  const bar = document.getElementById("annBar");
+  if (!ANNOUNCEMENT || localStorage.getItem("zc_ann_" + ANNOUNCEMENT.id) === "1") { bar.classList.remove("show"); return; }
+  const isZh = lang === "zh" || lang === "zhTW";
+  const text = isZh ? ANNOUNCEMENT.zh : ANNOUNCEMENT.en;
+  const cta = isZh ? ANNOUNCEMENT.cta.zh : ANNOUNCEMENT.cta.en;
+  bar.innerHTML =
+    (ANNOUNCEMENT.tags || []).map(t => '<span class="a-tag">' + esc(t) + '</span>').join("") +
+    '<span class="a-text">' + esc(text) + '</span>' +
+    (ANNOUNCEMENT.cta ? '<a class="a-cta" href="' + esc(ANNOUNCEMENT.cta.href) + '" target="_blank" rel="noopener">' + esc(cta) + '</a>' : "") +
+    '<button class="a-close" id="annClose" title="✕">✕</button>';
+  bar.classList.add("show");
+  document.getElementById("annClose").onclick = () => {
+    localStorage.setItem("zc_ann_" + ANNOUNCEMENT.id, "1");
+    bar.classList.remove("show");
+  };
+}
+
 /* ============ 状态 ============ */
 let goods = [];            // {name,l,w,h,qty,kg,stack,color} 内部单位 cm/kg
 let packResults = null;
@@ -893,6 +933,7 @@ function renderTabs() {
 function applyI18n() {
   document.documentElement.lang = lang === "zh" ? "zh-CN" : (lang === "zhTW" ? "zh-TW" : lang);
   document.documentElement.dir = (lang === "ar" || lang === "he") ? "rtl" : "ltr";
+  renderAnnouncement();
   document.title = t().title;
   document.getElementById("hTitle").textContent = "📦 " + t().app;
   document.getElementById("tagFree").textContent = t().free;

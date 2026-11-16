@@ -214,6 +214,17 @@ const { chromium } = require("playwright-core");
   check("方案载入恢复货物", loaded === 6, String(loaded));
   await page.evaluate(() => localStorage.removeItem("zc_plans"));
 
+  /* 11d2. 公告条：显示 → 关闭 → 刷新不再出现 */
+  const annShow = await page.evaluate(() => document.getElementById("annBar").classList.contains("show"));
+  check("公告条显示", annShow, "");
+  await page.click("#annClose");
+  await page.waitForTimeout(200);
+  const annHidden = await page.evaluate(() => !document.getElementById("annBar").classList.contains("show"));
+  check("公告条关闭", annHidden, "");
+  const annPersist = await page.evaluate(() => localStorage.getItem("zc_ann_v7-20261116") === "1");
+  check("关闭状态记忆", annPersist, "");
+  await page.evaluate(() => localStorage.removeItem("zc_ann_v7-20261116"));
+
   /* 11e. ULD 预设 + 编辑模式 + 报告选择器 */
   const uldOpt = await page.evaluate(() => [...document.getElementById("containerSel").options].some(o => o.value === "ULD-LD3"));
   check("ULD LD3/PMC 预设存在", uldOpt, "");
