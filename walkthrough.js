@@ -1,0 +1,183 @@
+/* 浏览器级全站走查（发布前固定流程）
+ * 用法: node walkthrough.js local|live
+ * 内容: 逐页真实渲染 + 资源加载监控 + JS 错误捕获 + 截图目检
+ *       + 全站链接 HTTP 校验 + 代表页全链接点击 + 应用交互冒烟
+ */
+"use strict";
+const { chromium } = require("playwright-core");
+const { spawn } = require("child_process");
+const fs = require("fs");
+const path = require("path");
+
+const EXE = process.env.HOME + "/.agent-browser/browsers/chrome-152.0.7977.64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
+const SEO_LANGS = ["en","es","pt","de","fr","vi","ja","ko","ru","zhTW","it","nl","pl","tr","id","ms","fi","sv","cs","hu","el","th","ar","he"];
+const OUT = path.join(__dirname, "walkthrough");
+fs.mkdirSync(OUT, { recursive: true });
+
+let pass = 0, fail = 0, warns = 0;
+const issues = [];
+function check(name, cond, detail, warnOnly) {
+  if (cond) { pass++; console.log("  ✅ " + name + (detail ? "  " + detail : "")); }
+  else if (warnOnly) { warns++; console.log("  ⚠️ " + name + "  " + (detail || "")); }
+  else { fail++; issues.push(name + " " + (detail || "")); console.log("  ❌ " + name + "  " + (detail || "")); }
+}
+
+async function walkPage(page, url, name, base) {
+  const errors = [], badRes = [], failed = [];
+  page.on("pageerror", e => errors.push(e.message.slice(0, 150)));
+  page.on("console", m => { if (m.type() === "error" && !/favicon|net::ERR_ABORTED/.test(m.text())) errors.push(m.text().slice(0, 150)); });
+  page.on("response", r => { if (r.url().startsWith(base) && r.status() >= 400) badRes.push(r.status() + " " + r.url().replace(base, "")); });
+  page.on("requestfailed", r => { if (r.url().startsWith(base)) failed.push(r.url().replace(base, "")); });
+  await page.goto(url, { waitUntil: "networkidle", timeout: 45000 });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: path.join(OUT, name + ".png") });
+  return { errors, badRes, failed };
+}
+
+async function collectLinks(page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll("a[href]")]
+      .map(a => ({ href: a.href, text: (a.textContent || "").trim().slice(0, 20) }))
+      .filter(l => !l.href.startsWith("javascript")));
+}
+
+(async () => {
+  const mode = process.argv[2] || "local";
+  let server = null;
+  let base;
+  if (mode === "live") {
+    base = "https://c314726018.github.io/guimanman";
+  } else {
+    server = spawn("python3", ["-m", "http.server", "8643", "--bind", "127.0.0.1"], { cwd: __dirname, stdio: "ignore" });
+    await new Promise(r => setTimeout(r, 1200));
+    base = "http://127.0.0.1:8643";
+  }
+
+  const browser = await chromium.launch({ executablePath: EXE, headless: true });
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  const allLinks = new Set();
+
+  console.log(`\n===== 全站走查（${mode}）=====\n—— 逐页渲染（25 页）——`);
+
+  // 主应用
+  {
+    const r = await walkPage(page, base + "/", "app-desktop", base);
+    check("主应用渲染无 JS 错误", r.errors.length === 0, r.errors.join(";") || "");
+    check("主应用资源加载正常", r.badRes.length === 0 && r.failed.length === 0, (r.badRes.concat(r.failed)).join(",") || "");
+    // 交互冒烟
+    await page.click("#btnSample");
+    await page.waitForTimeout(1500);
+    const st = await page.evaluate(() => ({
+      pr: !!packResults, boxes: packResults ? packResults.containers.reduce((s, c) => s + c.placed.length, 0) : 0,
+      chips: document.querySelectorAll("#results .chip").length }));
+    check("示例计算完成（208 件）", st.pr && st.boxes === 208 && st.chips >= 4, JSON.stringify(st));
+    await page.click("#btnSteps"); await page.waitForTimeout(300);
+    check("步骤面板打开", await page.evaluate(() => document.getElementById("stepsPanel").classList.contains("open")), "");
+    await page.click("#stepsClose");
+    await page.click("#btnEdit"); await page.waitForTimeout(200);
+    check("编辑模式切换", await page.evaluate(() => editMode === true), "");
+    await page.click("#btnEdit"); await page.waitForTimeout(200);
+    await page.evaluate(() => { document.getElementById("containerSel").value = "ULD-LD3"; document.getElementById("containerSel").dispatchEvent(new Event("change")); });
+    await page.waitForTimeout(1200);
+    check("ULD 切换正常", await page.evaluate(() => packResults.containers.every(c => c.placed.every(p => p.x + p.L <= 202 && p.y + p.W <= 154 && p.z + p.H <= 161))), "");
+    await page.evaluate(() => { document.getElementById("containerSel").value = "40HC"; document.getElementById("containerSel").dispatchEvent(new Event("change")); });
+    await page.waitForTimeout(1000);
+    // 链接收集
+    (await collectLinks(page)).forEach(l => allLinks.add(l.href));
+    // 手机端
+    const mob = await ctx.newPage();
+    await mob.setViewportSize({ width: 390, height: 844 });
+    await mob.goto(base + "/", { waitUntil: "networkidle" });
+    await mob.click("#btnMore"); await mob.waitForTimeout(250);
+    check("手机端 ⚙ 菜单展开", await mob.evaluate(() => document.getElementById("moreMenu").classList.contains("open")), "");
+    await mob.screenshot({ path: path.join(OUT, "app-mobile-menu.png") });
+    await mob.close();
+    console.log("  📸 app-desktop.png / app-mobile-menu.png");
+  }
+
+  // 24 个 SEO 页
+  for (const l of SEO_LANGS) {
+    const r = await walkPage(page, base + "/seo/" + l + ".html", "seo-" + l, base);
+    const name = "SEO " + l;
+    check(name + " 无 JS 错误", r.errors.length === 0, r.errors.join(";") || "");
+    check(name + " 资源正常", r.badRes.length === 0 && r.failed.length === 0, (r.badRes.concat(r.failed)).join(",") || "");
+    const h1 = await page.textContent("h1").catch(() => "");
+    check(name + " 有 H1", h1 && h1.trim().length > 0, h1.trim().slice(0, 30));
+    const cta = await page.getAttribute(".cta", "href").catch(() => null);
+    check(name + " CTA 存在", !!cta, cta || "");
+    (await collectLinks(page)).forEach(l2 => allLinks.add(l2.href));
+    console.log("  📸 seo-" + l + ".png");
+  }
+
+  // 全站链接 HTTP 校验
+  console.log("\n—— 全站链接 HTTP 校验（" + allLinks.size + " 个唯一链接）——");
+  let linkBad = 0, linkOk = 0;
+  for (const href of allLinks) {
+    let u = href;
+    if (u.startsWith("/") && mode === "live") u = "https://c314726018.github.io" + u;
+    if (u.startsWith("/") && mode !== "live") u = base + u;
+    try {
+      const resp = await page.request.get(u, { maxRedirects: 3 });
+      if (resp.status() < 400) linkOk++;
+      else { linkBad++; issues.push("链接 " + resp.status() + " " + u); console.log("  ❌ 链接 " + resp.status() + " " + u); }
+    } catch (e) { linkBad++; console.log("  ❌ 链接异常 " + u + " " + e.message.slice(0, 60)); }
+  }
+  check("全部链接可达 (" + linkOk + "/" + allLinks.size + ")", linkBad === 0, linkBad + " 个失败");
+
+  // 代表页全链接点击（主站：逐个真实点击并返回）
+  console.log("\n—— 主站链接真实点击 ——");
+  await page.goto(base + "/", { waitUntil: "networkidle" });
+  const links = await collectLinks(page);
+  const clicked = new Set();
+  let clickBad = 0, clickOk = 0;
+  for (const l of links) {
+    let u = l.href;
+    if (u.startsWith("/") && mode === "live") u = "https://c314726018.github.io" + u;
+    if (u.startsWith("/") && mode !== "live") u = base + u;
+    if (clicked.has(u)) continue;
+    clicked.add(u);
+    try {
+      await page.goto(u, { waitUntil: "domcontentloaded", timeout: 30000 });
+      clickOk++;
+      await page.goBack({ waitUntil: "domcontentloaded" });
+    } catch (e) { clickBad++; console.log("  ❌ 点击失败 " + u); await page.goto(base + "/", { waitUntil: "domcontentloaded" }); }
+  }
+  check("主站全部链接真实点击通过 (" + clickOk + ")", clickBad === 0, clickBad + " 个失败");
+
+  // 代表 SEO 页全链接真实点击（en 页：24 个语言链接 + CTA + 中文）
+  console.log("\n—— SEO en 页链接真实点击 ——");
+  await page.goto(base + "/seo/en.html", { waitUntil: "networkidle" });
+  const seoLinks = await collectLinks(page);
+  const doneSet = new Set();
+  let seoBad = 0, seoOk = 0;
+  for (const l of seoLinks) {
+    let u = l.href;
+    if (u.startsWith("/") && mode === "live") u = "https://c314726018.github.io" + u;
+    if (u.startsWith("/") && mode !== "live") u = base + u;
+    if (doneSet.has(u)) continue;
+    doneSet.add(u);
+    try {
+      await page.goto(u, { waitUntil: "domcontentloaded", timeout: 30000 });
+      seoOk++;
+      await page.goto(base + "/seo/en.html", { waitUntil: "domcontentloaded" });
+    } catch (e) { seoBad++; console.log("  ❌ 点击失败 " + u); await page.goto(base + "/seo/en.html", { waitUntil: "domcontentloaded" }); }
+  }
+  check("SEO en 页全部链接真实点击通过 (" + seoOk + ")", seoBad === 0, seoBad + " 个失败");
+
+  // 旧链接跳转（仅线上）
+  if (mode === "live") {
+    const resp = await page.request.get("https://c314726018.github.io/container-load-planner/");
+    check("旧链接跳转页 200", resp.status() === 200, String(resp.status()));
+  }
+
+  await browser.close();
+  if (server) server.kill();
+
+  console.log("\n===== 走查汇总 =====");
+  console.log(`✅ 通过 ${pass} ｜ ⚠️ 提醒 ${warns} ｜ ❌ 失败 ${fail}`);
+  if (issues.length) console.log("问题清单:\n" + issues.map(i => "  - " + i).join("\n"));
+  console.log(fail === 0 ? "🟢 全站走查通过，可以发布" : "🔴 存在问题，修复后再发布");
+  fs.writeFileSync(path.join(OUT, "report.txt"), `walkthrough ${mode} ${new Date().toISOString()} pass=${pass} warn=${warns} fail=${fail}\n` + issues.join("\n"));
+  process.exit(fail ? 1 : 0);
+})().catch(e => { console.error("走查脚本异常:", e.message); process.exit(1); });

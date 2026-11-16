@@ -238,7 +238,7 @@ ${hreflang}
 <header>
   <h1>📦 ${p.h1}</h1>
   <p>${p.sub}</p>
-  <div class="langs">${ALL_PAGES.map(x => `<a href="${x.file}" hreflang="${x.lang}">${x.lang.toUpperCase()}</a>`).join("")} · <a href="../">中文</a></div>
+  <div class="langs">${ALL_PAGES.map(x => `<a href="${x.file}" hreflang="${x.lang}">${x.lang.toUpperCase()}</a>`).join("")} · <a href="${BASE}/">中文</a></div>
 </header>
 <div class="wrap">
   <div class="grid">

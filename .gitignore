@@ -3,3 +3,4 @@ node_modules/
 .DS_Store
 e2e_proof.png
 e2e_mobile.png
+walkthrough/*.png

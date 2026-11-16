@@ -47,9 +47,21 @@ node test_pack.js
 # 端到端测试（需本机 Chrome for Testing，路径见 test_e2e.js）
 npm i playwright-core && node test_e2e.js
 
+# 发布前固定流程：浏览器级全站走查（逐页渲染+资源监控+链接点击+截图目检）
+node walkthrough.js local   # 本地
+node walkthrough.js live    # 线上（发布后复检）
+
 # 重新生成 SEO 落地页（上线前把 BASE 常量改成真实域名）
 node gen_seo.js
 ```
+
+## 发布前固定流程
+
+1. `node test_pack.js && node test_features.js && node test_import.js` — 三套逻辑测试
+2. `node test_e2e.js`（需临时本地服务器）— 端到端交互测试
+3. `node walkthrough.js local` — 浏览器级全站走查：25 页逐页渲染、资源加载监控、JS 错误捕获、49+ 链接点击、截图目检（walkthrough/ 目录）
+4. 推送后 `node walkthrough.js live` — 线上复检
+5. 全绿才发布；截图人工目检桌面/手机/RTL 三类页面
 
 ## 部署
 
