@@ -135,6 +135,8 @@ async function collectLinks(page) {
     let u = l.href;
     if (u.startsWith("/") && mode === "live") u = "https://c314726018.github.io" + u;
     if (u.startsWith("/") && mode !== "live") u = base + u;
+    // 本地模式：指向线上的链接映射回本地，避免外网波动干扰走查
+    if (mode !== "live") u = u.replace("https://c314726018.github.io/guimanman", base);
     if (clicked.has(u)) continue;
     clicked.add(u);
     try {
@@ -178,6 +180,6 @@ async function collectLinks(page) {
   console.log(`✅ 通过 ${pass} ｜ ⚠️ 提醒 ${warns} ｜ ❌ 失败 ${fail}`);
   if (issues.length) console.log("问题清单:\n" + issues.map(i => "  - " + i).join("\n"));
   console.log(fail === 0 ? "🟢 全站走查通过，可以发布" : "🔴 存在问题，修复后再发布");
-  fs.writeFileSync(path.join(OUT, "report.txt"), `walkthrough ${mode} ${new Date().toISOString()} pass=${pass} warn=${warns} fail=${fail}\n` + issues.join("\n"));
+  fs.writeFileSync(path.join(OUT, "report-" + mode + ".txt"), `walkthrough ${mode} ${new Date().toISOString()} pass=${pass} warn=${warns} fail=${fail}\n` + issues.join("\n"));
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error("走查脚本异常:", e.message); process.exit(1); });
