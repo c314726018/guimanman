@@ -214,6 +214,29 @@ const { chromium } = require("playwright-core");
   check("方案载入恢复货物", loaded === 6, String(loaded));
   await page.evaluate(() => localStorage.removeItem("zc_plans"));
 
+  /* 11e. ULD 预设 + 编辑模式 + 报告选择器 */
+  const uldOpt = await page.evaluate(() => [...document.getElementById("containerSel").options].some(o => o.value === "ULD-LD3"));
+  check("ULD LD3/PMC 预设存在", uldOpt, "");
+  await page.evaluate(() => { document.getElementById("containerSel").value = "ULD-LD3"; document.getElementById("containerSel").dispatchEvent(new Event("change")); });
+  await page.waitForTimeout(1500);
+  const uldIn = await page.evaluate(() => {
+    const placed = packResults.containers.flatMap(c => c.placed);
+    return placed.length > 0 && placed.every(p => p.x + p.L <= 201.5 && p.y + p.W <= 153.5 && p.z + p.H <= 160.5);
+  });
+  check("ULD LD3 内全部合规", uldIn, "");
+  await page.evaluate(() => { document.getElementById("containerSel").value = "40HC"; document.getElementById("containerSel").dispatchEvent(new Event("change")); });
+  await page.waitForTimeout(1200);
+  await page.click("#btnEdit");
+  await page.waitForTimeout(300);
+  const ctrl = await page.evaluate(() => !controls.enabled);
+  check("编辑模式开启（轨道控制暂停）", ctrl, "");
+  const editActive = await page.evaluate(() => document.getElementById("btnEdit").classList.contains("active-edit"));
+  check("编辑按钮高亮", editActive, "");
+  await page.click("#btnEdit");
+  const rselOpts = await page.locator("#selReportLang option").count();
+  check("报告语言选择器（Auto+25）", rselOpts >= 26, String(rselOpts));
+  await page.selectOption("#selReportTpl", "det");
+
   /* 12. PDF 导出（stub window.open 验证调用） */
   await page.evaluate(() => { window.__pdfOpened = false; window.open = () => { window.__pdfOpened = true; return { document: { write() {}, close() {} }, print() {} }; }; });
   await page.click("#btnPdf");

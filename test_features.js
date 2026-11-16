@@ -136,6 +136,24 @@ console.log("[悬空比率] overhang=1 允许完全悬空，0.7 默认不允许"
   }
 }
 
+/* 8b. 冷柜机组预留 / 门端限高 / 单件超载 */
+console.log("[冷柜语义] 机组预留 + 门端限高 + 超载");
+{
+  const g1 = [{ name: "长货", l: 660, w: 100, h: 100, qty: 1, kg: 100, stack: 1, color: "#fff" }];
+  const r2 = PackLib.packAll(g1, { l: 1203.1, w: 235.2, h: 269.1, payload: 26500, reeferLen: 600 });
+  check("预留 600cm 后 660cm 货装不下（stuck）", r2.containers.length === 0 && r2.stuck.length === 1,
+    "柜" + r2.containers.length + " stuck" + r2.stuck.length);
+  const g2 = [{ name: "高货", l: 120, w: 200, h: 200, qty: 3, kg: 100, stack: 1, color: "#fff" }];
+  const r3 = PackLib.packAll(g2, { l: 1203.1, w: 235.2, h: 269.1, payload: 26500, doorH: 150 });
+  const doorViol = r3.containers.flatMap(c => c.placed)
+    .filter(p => p.x + p.L > 1203.1 - 60 - 0.01 && p.z + p.H > 150.01).length;
+  check("门端限高 150 无违规", doorViol === 0, doorViol + " 处");
+  check("3 件高货仍全部装入（门端限高自动绕行）", r3.containers.reduce((s,c)=>s+c.placed.length,0) === 3, "");
+  const g3 = [{ name: "超重件", l: 100, w: 100, h: 100, qty: 1, kg: 30000, stack: 1, color: "#fff" }];
+  const r4 = PackLib.packAll(g3, { l: 589.8, w: 235.2, h: 239.1, payload: 28000 });
+  check("单件超额定载重 → stuck", r4.containers.length === 0 && r4.stuck.length === 1, "");
+}
+
 /* 9. 性能：新字段不拖慢 */
 console.log("[性能] 1000 件多策略");
 {
