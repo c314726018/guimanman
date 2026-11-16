@@ -1,8 +1,8 @@
-# 📦 Container Load Planner（装柜计算器）
+# 📦 柜满满 GuiManMan — 免费在线装柜优化工具
 
-免费在线集装箱装柜优化工具：输入货物尺寸，自动计算 3D 码放方案，降低海运运费。
+输入货物尺寸，自动计算集装箱 3D 码放方案，把柜子装得更满、运费省得更多。
 
-**线上地址**：（部署后填写）
+**线上地址**：https://c314726018.github.io/container-load-planner/（自定义域名 guimanman.com 待绑定）
 
 ## 功能
 

@@ -3,7 +3,8 @@
 const fs = require("fs");
 const path = require("path");
 
-const BASE = ""; // 部署时填域名，如 https://loadplanner.example
+const BASE = ""; // 部署时填域名，如 https://www.guimanman.com
+const BRAND = "GuiManMan"; // 柜满满
 const APP = "../index.html";
 
 const PAGES = [
@@ -137,7 +138,7 @@ for (const p of PAGES) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${p.title}</title>
+<title>${BRAND} — ${p.title}</title>
 <meta name="description" content="${p.desc}">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
 ${hreflang}
@@ -159,7 +160,7 @@ ${hreflang}
     ${p.faq.map(([q, a]) => `<div><b>${q}</b>${a}</div>`).join("\n    ")}
   </div>
 </div>
-<footer>📦 ${p.h1} — Free Container Load Planning Tool</footer>
+<footer>📦 ${BRAND}（柜满满） — Free Container Load Planning Tool</footer>
 </body>
 </html>`;
   fs.writeFileSync(path.join(__dirname, "seo", p.file), html);
