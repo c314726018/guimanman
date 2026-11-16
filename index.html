@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>装柜计算器 — 集装箱装载优化</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body { font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:#f0f2f5; color:#1a1a1a; display:flex; flex-direction:column; overflow:hidden; }
+  header { background:#1e293b; color:#fff; padding:10px 20px; display:flex; align-items:center; gap:16px; flex-shrink:0; flex-wrap:wrap; }
+  header h1 { font-size:17px; font-weight:600; }
+  header .tag { font-size:11px; background:#065f46; padding:2px 8px; border-radius:10px; color:#6ee7b7; }
+  header .spacer { flex:1; }
+  .btn { border:none; border-radius:6px; padding:8px 16px; font-size:13px; cursor:pointer; font-weight:500; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-primary { background:#2563eb; color:#fff; }
+  .btn-primary:hover { background:#1d4ed8; }
+  .btn-ghost { background:#334155; color:#cbd5e1; }
+  .btn-ghost:hover { background:#475569; }
+  #langSel, #unitSel { width:auto; padding:6px 8px; font-size:13px; border-radius:6px; border:1px solid #475569; background:#334155; color:#e2e8f0; }
+  .main { display:flex; flex:1; overflow:hidden; }
+
+  /* 侧栏 */
+  .sidebar { width:360px; background:#fff; border-right:1px solid #e2e5ea; overflow-y:auto; padding:16px; flex-shrink:0; }
+  .sec { margin-bottom:20px; }
+  .sec h3 { font-size:13px; color:#64748b; margin-bottom:8px; font-weight:600; letter-spacing:.5px; }
+  select, input, textarea { border:1px solid #d3d9e2; border-radius:6px; padding:8px 10px; font-size:13px; width:100%; background:#fff; }
+  select:focus, input:focus, textarea:focus { outline:none; border-color:#2563eb; }
+  textarea { font-family:ui-monospace,monospace; resize:vertical; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  .grid4 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  label.f { display:flex; flex-direction:column; gap:3px; font-size:12px; color:#475569; }
+  .add-btn { margin-top:10px; width:100%; background:#0f172a; color:#fff; }
+  .add-btn:hover { background:#1e293b; }
+  .mini-btn { margin-top:8px; width:100%; background:#eef2f7; color:#334155; border:1px dashed #c3cdd9; }
+  .mini-btn:hover { background:#e2e8f0; }
+  .paste-box { display:none; margin-top:8px; }
+  .paste-box.open { display:block; }
+  .paste-actions { display:flex; gap:8px; margin-top:6px; }
+  .paste-actions .btn { flex:1; padding:7px; }
+  .btn-green { background:#059669; color:#fff; }
+  .goods-list { margin-top:6px; }
+  .goods-item { display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid #e8ecf1; border-radius:8px; margin-bottom:6px; font-size:13px; background:#fafbfd; }
+  .dot { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
+  .goods-item .info { flex:1; line-height:1.4; }
+  .goods-item .name { font-weight:600; }
+  .goods-item .dim { color:#64748b; font-size:12px; }
+  .del { color:#94a3b8; cursor:pointer; font-size:16px; background:none; border:none; padding:2px 6px; }
+  .del:hover { color:#dc2626; }
+  .hint { font-size:12px; color:#94a3b8; margin-top:4px; line-height:1.5; }
+
+  /* 结果区 */
+  .results { background:#fff; border-top:1px solid #e2e5ea; padding:10px 16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; flex-shrink:0; min-height:52px; }
+  .chip { background:#f1f5f9; border-radius:8px; padding:6px 14px; font-size:13px; display:flex; flex-direction:column; }
+  .chip b { font-size:15px; color:#0f172a; }
+  .chip .u { color:#64748b; font-size:11px; }
+  .chip.warn { background:#fef2f2; } .chip.warn b { color:#b91c1c; }
+  .chip.good { background:#f0fdf4; } .chip.good b { color:#15803d; }
+  .msg { font-size:13px; color:#b45309; }
+
+  /* 画布 */
+  .canvas-wrap { flex:1; position:relative; background:#e8ecf1; overflow:hidden; }
+  .canvas-wrap canvas { display:block; }
+  .container-tabs { position:absolute; top:10px; left:12px; z-index:10; display:flex; gap:6px; flex-wrap:wrap; max-width:70%; }
+  .ctab { background:#fff; border:1px solid #d3d9e2; border-radius:6px; padding:5px 12px; font-size:12px; cursor:pointer; }
+  .ctab.active { background:#2563eb; color:#fff; border-color:#2563eb; }
+  .legend { position:absolute; bottom:10px; left:12px; z-index:10; background:rgba(255,255,255,.92); border-radius:8px; padding:8px 12px; font-size:12px; max-width:320px; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+  .legend div { display:flex; align-items:center; gap:6px; margin:2px 0; }
+  .toast { position:absolute; top:50px; left:50%; transform:translateX(-50%); background:#1e293b; color:#fff; padding:8px 18px; border-radius:8px; font-size:13px; z-index:20; display:none; max-width:80%; }
+  .empty-tip { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:15px; flex-direction:column; gap:8px; }
+  .empty-tip .big { font-size:40px; }
+
+  /* 装载步骤面板 */
+  .steps-panel { position:absolute; top:10px; right:12px; bottom:10px; width:320px; z-index:15; background:rgba(255,255,255,.97); border-radius:10px; box-shadow:0 4px 20px rgba(0,0,0,.18); padding:14px; overflow-y:auto; display:none; }
+  .steps-panel.open { display:block; }
+  .steps-panel h4 { font-size:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
+  .steps-panel .close-x { background:none; border:none; font-size:16px; cursor:pointer; color:#94a3b8; }
+  .step-row { display:flex; gap:8px; padding:7px 8px; border-radius:8px; background:#f6f8fb; margin-bottom:6px; font-size:12px; align-items:center; }
+  .step-row .num { background:#2563eb; color:#fff; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0; }
+  .step-row .desc { line-height:1.4; flex:1; }
+
+  /* 偏载分布条 */
+  .balance { display:flex; flex-direction:column; gap:3px; font-size:11px; color:#64748b; }
+  .bal-bar { display:flex; height:14px; border-radius:7px; overflow:hidden; width:150px; }
+  .bal-bar div { display:flex; align-items:center; justify-content:center; color:#fff; font-size:10px; }
+  .bal-lr .l { background:#2563eb; } .bal-lr .r { background:#0891b2; }
+  .bal-fb .f2 { background:#059669; } .bal-fb .b2 { background:#d97706; }
+  .bal-warn { color:#b91c1c; font-size:12px; }
+
+  /* 自定义柜型 */
+  #customBox { display:none; margin-top:8px; padding:10px; background:#f6f8fb; border-radius:8px; }
+  #customBox.open { display:block; }
+  #customBox .grid2 { margin-top:0; }
+
+  /* 立放复选框 */
+  .cb { display:flex; flex-direction:row !important; align-items:center; gap:6px; margin-top:8px; font-size:13px; color:#334155; cursor:pointer; }
+  .cb input { width:15px; height:15px; }
+
+  /* 手机端 */
+  @media (max-width: 900px) {
+    header { padding:8px 10px; gap:8px; }
+    header h1 { font-size:15px; }
+    header .btn { padding:6px 10px; font-size:12px; }
+    header .spacer { display:none; }
+    .main { flex-direction:column; }
+    .canvas-wrap { order:-1; min-height:44vh; flex:none; }
+    .sidebar { width:100%; flex:1; order:1; border-right:none; border-top:1px solid #e2e5ea; }
+    .results { order:2; font-size:12px; padding:8px 10px; }
+    .chip { padding:4px 10px; }
+    .steps-panel { width:min(320px, 86vw); }
+  }
+  @media (max-width: 480px) {
+    header .tag { display:none; }
+    .chip .u { font-size:10px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="hTitle">📦 装柜计算器</h1>
+  <span class="tag" id="tagFree">免费</span>
+  <div class="spacer"></div>
+  <select id="langSel" title="Language"></select>
+  <select id="unitSel" title="Units"></select>
+  <button class="btn btn-ghost" id="btnImport">导入 CSV/Excel</button>
+  <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.txt" style="display:none">
+  <button class="btn btn-ghost" id="btnSample">载入示例</button>
+  <button class="btn btn-ghost" id="btnShare">分享链接</button>
+  <button class="btn btn-ghost" id="btnSteps">装载步骤</button>
+  <button class="btn btn-ghost" id="btnPdf">导出 PDF</button>
+  <button class="btn btn-ghost" id="btnShot">导出截图</button>
+  <button class="btn btn-primary" id="btnCalc">开始计算</button>
+</header>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sec">
+      <h3 id="hCont">集装箱型号</h3>
+      <select id="containerSel"></select>
+      <div class="hint" id="containerInfo"></div>
+      <div id="customBox">
+        <div class="grid2">
+          <label class="f"><span id="cuLlb">内长 (cm)</span><input type="number" id="cuL" placeholder="600"></label>
+          <label class="f"><span id="cuWlb">内宽 (cm)</span><input type="number" id="cuW" placeholder="235"></label>
+          <label class="f"><span id="cuHlb">内高 (cm)</span><input type="number" id="cuH" placeholder="240"></label>
+          <label class="f"><span id="cuPlb">额定载重 (kg)</span><input type="number" id="cuP" placeholder="20000"></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3 id="hAdd">添加货物</h3>
+      <input type="text" id="gName">
+      <div class="grid4">
+        <label class="f"><span id="lbL">长</span><input type="number" id="gL" placeholder="60" min="0.1"></label>
+        <label class="f"><span id="lbW">宽</span><input type="number" id="gW" placeholder="40" min="0.1"></label>
+        <label class="f"><span id="lbH">高</span><input type="number" id="gH" placeholder="40" min="0.1"></label>
+        <label class="f"><span id="lbQty">件数</span><input type="number" id="gQty" placeholder="100" min="1"></label>
+      </div>
+      <div class="grid2">
+        <label class="f"><span id="lbKg">单件重量 (kg)</span><input type="number" id="gKg" placeholder="10" min="0"></label>
+        <label class="f"><span id="lbStack">最大堆叠层数</span><input type="number" id="gStack" value="5" min="1" max="20"></label>
+      </div>
+      <label class="cb"><input type="checkbox" id="gUpright"><span id="lbUpright">禁止旋转（保持直立）</span></label>
+      <button class="btn add-btn" id="btnAdd">＋ 添加货物</button>
+      <div class="hint" id="stackHint"></div>
+      <button class="btn mini-btn" id="btnPasteToggle">📋 粘贴导入</button>
+      <div class="paste-box" id="pasteBox">
+        <textarea id="pasteTa" rows="5"></textarea>
+        <div class="paste-actions">
+          <button class="btn btn-green" id="btnPasteAdd">确认导入</button>
+          <button class="btn btn-ghost" id="btnPasteCancel" style="background:#e2e8f0;color:#334155">取消</button>
+        </div>
+        <div class="hint" id="pasteHint"></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3><span id="hList">货物清单</span>（<span id="goodsCount">0</span>）</h3>
+      <div class="goods-list" id="goodsList"></div>
+    </div>
+  </div>
+
+  <div class="canvas-wrap">
+    <div class="container-tabs" id="containerTabs"></div>
+    <div class="empty-tip" id="emptyTip"><div class="big">📦</div><span id="emptyTipText">添加货物后点击「开始计算」</span></div>
+    <div class="legend" id="legend" style="display:none"></div>
+    <div class="toast" id="toast"></div>
+    <div class="steps-panel" id="stepsPanel">
+      <h4><span id="stepsTitle">装载步骤</span><button class="close-x" id="stepsClose">✕</button></h4>
+      <div id="stepsBody"></div>
+    </div>
+  </div>
+</div>
+
+<div class="results" id="results">
+  <span class="msg" id="resultMsg">等待计算…</span>
+</div>
+
+<script src="lib/three.min.js"></script>
+<script src="lib/OrbitControls.js"></script>
+<script src="lib/pack.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script>
+"use strict";
+
+/* ============ 集装箱规格（内尺寸 cm / 额定载重 kg） ============ */
+const CONTAINERS = {
+  "20GP": { l:589.8, w:235.2, h:239.1, payload:28000 },
+  "40GP": { l:1203.1, w:235.2, h:239.1, payload:26500 },
+  "40HC": { l:1203.1, w:235.2, h:269.1, payload:26500 },
+  "45HC": { l:1351.3, w:235.2, h:269.1, payload:27000 },
+};
+const PALETTE = ["#3b82f6","#f59e0b","#10b981","#ef4444","#8b5cf6","#06b6d4","#ec4899","#84cc16","#f97316","#6366f1","#14b8a6","#a855f7"];
+
+/* ============ 多语言 ============ */
+const LANGS = [
+  ["zh","中文"],["en","English"],["es","Español"],["ja","日本語"],["ko","한국어"],["ru","Русский"]
+];
+const I18N = {
+  zh: {
+    title:"装柜计算器 — 集装箱装载优化", app:"装柜计算器", free:"免费", sample:"载入示例", shot:"导出截图",
+    share:"分享链接", calc:"开始计算", importBtn:"导入 CSV/Excel", importBtnShort:"导入文件",
+    hCont:"集装箱型号", hAdd:"添加货物", hList:"货物清单", pasteToggle:"📋 粘贴导入（Excel 复制后直接粘贴）",
+    pasteAdd:"确认导入", pasteCancel:"取消", pasteHint:"每行一条：名称 长 宽 高 件数 重量 堆叠层数（空格或 Tab 分隔，单位 cm/kg）",
+    contInfo:(l,w,h,vol,p)=>"内尺寸 "+l+"×"+w+"×"+h+" cm ｜ 容积 "+vol+" m³ ｜ 额定载重 "+(p/1000)+" 吨",
+    stackHint:"堆叠层数 = 该货品最多允许几层叠放（含底层）。锂电池等危险品通常限 3 层。",
+    addBtn:"＋ 添加货物", noGoods:"暂无货物，先在上方添加或导入",
+    emptyTip:"添加货物后点击「开始计算」", waiting:"等待计算…", calcing:"计算中…",
+    needCont:"需用柜数", volUtil:"体积利用率", loadedN:"装入件数", grossW:"本柜毛重", loadUse:"载重占用",
+    stuckMsg:n=>"⚠️ 有 "+n+" 件货品单件尺寸超过柜内空间，无法装载",
+    lowVolTip:"💡 体积利用率偏低，试试换更小的柜型省钱",
+    cab:n=>"柜 "+n, goodsName:"货品", phName:"货品名称（如：纸箱A）",
+    lbL:"长 (cm)", lbW:"宽 (cm)", lbH:"高 (cm)", lbQty:"件数", lbKg:"单件重量 (kg)", lbStack:"最大堆叠层数",
+    tNeedGoods:"请先添加货物", tFillDims:"请填写长宽高", tNeedQty:"请填写件数",
+    tCalcErr:"计算出错：", tExported:"已导出截图", tCopied:"分享链接已复制，发给同事即可打开同款方案",
+    tImportFail:"文件解析失败，请检查格式", tImported:n=>"已导入 "+n+" 项货物", tPasteEmpty:"未识别到有效数据",
+    tNoCalc:"先计算一次", dimUnit:"cm", pcs:"件", kgEach:"kg/件", stackN:n=>"叠"+n+"层",
+    fileName:"装柜方案-柜",
+    steps:"装载步骤", stepsEmpty:"先计算一次", zoneF:"柜前段", zoneM:"柜中段", zoneR:"柜后段",
+    lbUpright:"禁止旋转（保持直立）", upYes:"立放", customLabel:"自定义尺寸…",
+    cuLlb:"内长 (cm)", cuWlb:"内宽 (cm)", cuHlb:"内高 (cm)", cuPlb:"额定载重 (kg)",
+    balTitle:"重量分布", balLR:"左右", balFB:"前后", sideL:"左", sideR:"右", sideF:"前", sideB:"后",
+    balWarn:"⚠️ 偏载超过 60%，建议调整摆放",
+    pdfBtn:"导出 PDF", pdfCompany:"输入公司名称（用于报告抬头，可留空）：",
+    rTitle:"装柜方案报告", rDate:"日期", rGoods:"货物清单", rSteps:"装载步骤", rNoSteps:"（无步骤）",
+    contLabels:{ "20GP":"20尺柜 20GP", "40GP":"40尺柜 40GP", "40HC":"40尺高柜 40HC", "45HC":"45尺高柜 45HC" },
+  },
+  en: {
+    title:"Container Load Planner — 3D Load Optimization", app:"Container Load Planner", free:"FREE", sample:"Load Sample", shot:"Export Image",
+    share:"Share Link", calc:"Calculate", importBtn:"Import CSV/Excel", importBtnShort:"Import file",
+    hCont:"Container Type", hAdd:"Add Cargo", hList:"Cargo List", pasteToggle:"📋 Paste from Excel (copy & paste here)",
+    pasteAdd:"Import", pasteCancel:"Cancel", pasteHint:"One item per line: name L W H qty weight maxStack (space/Tab separated, cm & kg)",
+    contInfo:(l,w,h,vol,p)=>"Internal "+l+"×"+w+"×"+h+" cm ｜ Volume "+vol+" m³ ｜ Max payload "+(p/1000)+" t",
+    stackHint:"Max stack = how many layers this item may be stacked (including the bottom one). Lithium batteries are usually limited to 3.",
+    addBtn:"＋ Add Cargo", noGoods:"No cargo yet — add items above or import a file",
+    emptyTip:"Add cargo, then click Calculate", waiting:"Waiting for calculation…", calcing:"Calculating…",
+    needCont:"Containers Needed", volUtil:"Volume Utilization", loadedN:"Items Loaded", grossW:"Gross Weight", loadUse:"Payload Used",
+    stuckMsg:n=>"⚠️ "+n+" item(s) exceed the container's internal space and cannot be loaded",
+    lowVolTip:"💡 Low utilization — try a smaller container type to save freight",
+    cab:n=>"Load "+n, goodsName:"Item", phName:"Item name (e.g. Box A)",
+    lbL:"L (cm)", lbW:"W (cm)", lbH:"H (cm)", lbQty:"Qty", lbKg:"Unit weight (kg)", lbStack:"Max stack layers",
+    tNeedGoods:"Add cargo first", tFillDims:"Please fill L/W/H", tNeedQty:"Please fill quantity",
+    tCalcErr:"Calculation error: ", tExported:"Image exported", tCopied:"Share link copied — send it to open the same plan",
+    tImportFail:"Failed to parse file, please check the format", tImported:n=>n+" item(s) imported", tPasteEmpty:"No valid rows found",
+    tNoCalc:"Calculate first", dimUnit:"cm", pcs:"pcs", kgEach:"kg/pc", stackN:n=>n+" layer(s)",
+    fileName:"load-plan-container",
+    steps:"Loading Steps", stepsEmpty:"Calculate first", zoneF:"Front section", zoneM:"Middle section", zoneR:"Rear section",
+    lbUpright:"No rotation (keep upright)", upYes:"upright", customLabel:"Custom size…",
+    cuLlb:"Internal L (cm)", cuWlb:"Internal W (cm)", cuHlb:"Internal H (cm)", cuPlb:"Max payload (kg)",
+    balTitle:"Weight Distribution", balLR:"Left/Right", balFB:"Front/Rear", sideL:"L", sideR:"R", sideF:"F", sideB:"B",
+    balWarn:"⚠️ Imbalance over 60% — consider rearranging",
+    pdfBtn:"Export PDF", pdfCompany:"Company name for report header (optional):",
+    rTitle:"Loading Plan Report", rDate:"Date", rGoods:"Cargo List", rSteps:"Loading Steps", rNoSteps:"(none)",
+    contLabels:{ "20GP":"20ft Std 20GP", "40GP":"40ft Std 40GP", "40HC":"40ft High Cube 40HC", "45HC":"45ft High Cube 45HC" },
+  },
+  es: {
+    title:"Planificador de Carga de Contenedores", app:"Planificador de Contenedores", free:"GRATIS", sample:"Ejemplo", shot:"Exportar imagen",
+    share:"Compartir enlace", calc:"Calcular", importBtn:"Importar CSV/Excel", importBtnShort:"Importar archivo",
+    hCont:"Tipo de contenedor", hAdd:"Agregar carga", hList:"Lista de carga", pasteToggle:"📋 Pegar desde Excel (copie y pegue aquí)",
+    pasteAdd:"Importar", pasteCancel:"Cancelar", pasteHint:"Un artículo por línea: nombre L A H cant peso capas (espacio/Tab, cm y kg)",
+    contInfo:(l,w,h,vol,p)=>"Interior "+l+"×"+w+"×"+h+" cm ｜ Volumen "+vol+" m³ ｜ Carga máx. "+(p/1000)+" t",
+    stackHint:"Capas máximas = cuántas capas se puede apilar este artículo (incluida la inferior). Baterías de litio: normalmente 3.",
+    addBtn:"＋ Agregar carga", noGoods:"Sin carga aún — agregue artículos o importe un archivo",
+    emptyTip:"Agregue carga y pulse Calcular", waiting:"Esperando cálculo…", calcing:"Calculando…",
+    needCont:"Contenedores necesarios", volUtil:"Uso de volumen", loadedN:"Artículos cargados", grossW:"Peso bruto", loadUse:"Carga usada",
+    stuckMsg:n=>"⚠️ "+n+" artículo(s) exceden el espacio del contenedor",
+    lowVolTip:"💡 Poca utilización — pruebe un contenedor más pequeño para ahorrar flete",
+    cab:n=>"Carga "+n, goodsName:"Artículo", phName:"Nombre del artículo (ej. Caja A)",
+    lbL:"Largo (cm)", lbW:"Ancho (cm)", lbH:"Alto (cm)", lbQty:"Cantidad", lbKg:"Peso unitario (kg)", lbStack:"Capas máximas",
+    tNeedGoods:"Primero agregue carga", tFillDims:"Complete L/A/H", tNeedQty:"Complete la cantidad",
+    tCalcErr:"Error de cálculo: ", tExported:"Imagen exportada", tCopied:"Enlace copiado — envíelo para abrir el mismo plan",
+    tImportFail:"No se pudo analizar el archivo", tImported:n=>n+" artículo(s) importado(s)", tPasteEmpty:"Sin datos válidos",
+    tNoCalc:"Calcule primero", dimUnit:"cm", pcs:"pzs", kgEach:"kg/pz", stackN:n=>n+" capa(s)",
+    fileName:"plan-carga-contenedor",
+    steps:"Pasos de carga", stepsEmpty:"Calcule primero", zoneF:"Sección frontal", zoneM:"Sección media", zoneR:"Sección trasera",
+    lbUpright:"Sin rotación (mantener vertical)", upYes:"vertical", customLabel:"Tamaño personalizado…",
+    cuLlb:"Largo int. (cm)", cuWlb:"Ancho int. (cm)", cuHlb:"Alto int. (cm)", cuPlb:"Carga máx. (kg)",
+    balTitle:"Distribución de peso", balLR:"Izq/Der", balFB:"Frente/Atrás", sideL:"I", sideR:"D", sideF:"F", sideB:"A",
+    balWarn:"⚠️ Desequilibrio superior al 60% — considere reorganizar",
+    pdfBtn:"Exportar PDF", pdfCompany:"Nombre de empresa para el encabezado (opcional):",
+    rTitle:"Informe de plan de carga", rDate:"Fecha", rGoods:"Lista de carga", rSteps:"Pasos de carga", rNoSteps:"(ninguno)",
+    contLabels:{ "20GP":"Contenedor 20ft 20GP", "40GP":"Contenedor 40ft 40GP", "40HC":"Contenedor 40ft HC 40HC", "45HC":"Contenedor 45ft HC 45HC" },
+  },
+  ja: {
+    title:"コンテナ積載計算 — 3D積載最適化", app:"コンテナ積載計算", free:"無料", sample:"サンプル読込", shot:"画像書き出し",
+    share:"共有リンク", calc:"計算開始", importBtn:"CSV/Excel取込", importBtnShort:"ファイル取込",
+    hCont:"コンテナ種別", hAdd:"貨物追加", hList:"貨物リスト", pasteToggle:"📋 Excelから貼り付け（コピーして貼付）",
+    pasteAdd:"取込", pasteCancel:"キャンセル", pasteHint:"1行1品目：品名 長さ 幅 高さ 数量 重量 最大段数（空白/Tab区切り、cm・kg）",
+    contInfo:(l,w,h,vol,p)=>"内部寸法 "+l+"×"+w+"×"+h+" cm ｜ 容積 "+vol+" m³ ｜ 最大積載量 "+(p/1000)+" t",
+    stackHint:"最大段数 = この品目を何段まで積めるか（底段を含む）。リチウムイオン電池は通常3段まで。",
+    addBtn:"＋ 貨物を追加", noGoods:"貨物がありません — 上で追加するかファイルを取込",
+    emptyTip:"貨物を追加して「計算開始」をクリック", waiting:"計算待ち…", calcing:"計算中…",
+    needCont:"必要コンテナ数", volUtil:"容積使用率", loadedN:"積載個数", grossW:"総重量", loadUse:"積載率（重量）",
+    stuckMsg:n=>"⚠️ "+n+" 個の品目はコンテナ内寸を超え積載できません",
+    lowVolTip:"💡 使用率が低い — 小さいコンテナで運賃を節約できます",
+    cab:n=>"コンテナ "+n, goodsName:"品目", phName:"品名（例：箱A）",
+    lbL:"長さ (cm)", lbW:"幅 (cm)", lbH:"高さ (cm)", lbQty:"数量", lbKg:"単品重量 (kg)", lbStack:"最大積載段数",
+    tNeedGoods:"先に貨物を追加してください", tFillDims:"寸法を入力してください", tNeedQty:"数量を入力してください",
+    tCalcErr:"計算エラー：", tExported:"画像を書き出しました", tCopied:"共有リンクをコピーしました",
+    tImportFail:"ファイル解析に失敗しました", tImported:n=>n+" 品目を取込しました", tPasteEmpty:"有効なデータがありません",
+    tNoCalc:"先に計算してください", dimUnit:"cm", pcs:"個", kgEach:"kg/個", stackN:n=>n+"段",
+    fileName:"積載計画-コンテナ",
+    steps:"積載手順", stepsEmpty:"先に計算してください", zoneF:"前方区画", zoneM:"中央区画", zoneR:"後方区画",
+    lbUpright:"回転禁止（直立維持）", upYes:"直立", customLabel:"カスタムサイズ…",
+    cuLlb:"内法 長さ (cm)", cuWlb:"内法 幅 (cm)", cuHlb:"内法 高さ (cm)", cuPlb:"最大積載量 (kg)",
+    balTitle:"重量配分", balLR:"左右", balFB:"前後", sideL:"左", sideR:"右", sideF:"前", sideB:"後",
+    balWarn:"⚠️ 偏荷重60%超 — 積み直しをご検討ください",
+    pdfBtn:"PDF出力", pdfCompany:"報告書ヘッダーの会社名（任意）：",
+    rTitle:"積載計画報告書", rDate:"日付", rGoods:"貨物リスト", rSteps:"積載手順", rNoSteps:"（なし）",
+    contLabels:{ "20GP":"20フィート 20GP", "40GP":"40フィート 40GP", "40HC":"40フィートハイキューブ 40HC", "45HC":"45フィートハイキューブ 45HC" },
+  },
+  ko: {
+    title:"컨테이너 적재 계산기 — 3D 최적화", app:"컨테이너 적재 계산기", free:"무료", sample:"예시 불러오기", shot:"이미지 내보내기",
+    share:"공유 링크", calc:"계산 시작", importBtn:"CSV/Excel 가져오기", importBtnShort:"파일 가져오기",
+    hCont:"컨테이너 유형", hAdd:"화물 추가", hList:"화물 목록", pasteToggle:"📋 Excel 붙여넣기 (복사 후 여기에 붙여넣기)",
+    pasteAdd:"가져오기", pasteCancel:"취소", pasteHint:"한 줄에 하나: 품명 가로 세로 높이 수량 무게 최대적층수 (공백/탭 구분, cm·kg)",
+    contInfo:(l,w,h,vol,p)=>"내부 치수 "+l+"×"+w+"×"+h+" cm ｜ 부피 "+vol+" m³ ｜ 최대 적재량 "+(p/1000)+" t",
+    stackHint:"최대 적층수 = 이 품목을 쌓을 수 있는 최대 층수(바닥 층 포함). 리튬전지는 보통 3층까지.",
+    addBtn:"＋ 화물 추가", noGoods:"화물이 없습니다 — 위에서 추가하거나 파일을 가져오세요",
+    emptyTip:"화물 추가 후 「계산 시작」 클릭", waiting:"계산 대기 중…", calcing:"계산 중…",
+    needCont:"필요 컨테이너 수", volUtil:"부피 사용률", loadedN:"적재 수량", grossW:"총 중량", loadUse:"적재 중량 비율",
+    stuckMsg:n=>"⚠️ "+n+"개 품목이 컨테이너 내부 크기를 초과하여 적재할 수 없습니다",
+    lowVolTip:"💡 사용률이 낮음 — 더 작은 컨테이너로 운임을 절약해 보세요",
+    cab:n=>"컨테이너 "+n, goodsName:"품목", phName:"품명 (예: 박스A)",
+    lbL:"가로 (cm)", lbW:"세로 (cm)", lbH:"높이 (cm)", lbQty:"수량", lbKg:"단품 무게 (kg)", lbStack:"최대 적층수",
+    tNeedGoods:"먼저 화물을 추가하세요", tFillDims:"가로/세로/높이를 입력하세요", tNeedQty:"수량을 입력하세요",
+    tCalcErr:"계산 오류: ", tExported:"이미지를 내보냈습니다", tCopied:"공유 링크가 복사되었습니다",
+    tImportFail:"파일 해석 실패 — 형식을 확인하세요", tImported:n=>n+"개 품목을 가져왔습니다", tPasteEmpty:"유효한 데이터가 없습니다",
+    tNoCalc:"먼저 계산하세요", dimUnit:"cm", pcs:"개", kgEach:"kg/개", stackN:n=>n+"층",
+    fileName:"적재계획-컨테이너",
+    steps:"적재 순서", stepsEmpty:"먼저 계산하세요", zoneF:"전방 구역", zoneM:"중앙 구역", zoneR:"후방 구역",
+    lbUpright:"회전 금지（세워서 적재）", upYes:"세워서", customLabel:"사용자 지정 크기…",
+    cuLlb:"내부 가로 (cm)", cuWlb:"내부 세로 (cm)", cuHlb:"내부 높이 (cm)", cuPlb:"최대 적재량 (kg)",
+    balTitle:"중량 분포", balLR:"좌/우", balFB:"전/후", sideL:"좌", sideR:"우", sideF:"전", sideB:"후",
+    balWarn:"⚠️ 편중 60% 초과 — 재배치를 권장합니다",
+    pdfBtn:"PDF 내보내기", pdfCompany:"보고서 헤더에 표시할 회사명（선택）：",
+    rTitle:"적재 계획 보고서", rDate:"날짜", rGoods:"화물 목록", rSteps:"적재 순서", rNoSteps:"（없음）",
+    contLabels:{ "20GP":"20피트 20GP", "40GP":"40피트 40GP", "40HC":"40피트 하이큐브 40HC", "45HC":"45피트 하이큐브 45HC" },
+  },
+  ru: {
+    title:"Калькулятор загрузки контейнеров — 3D оптимизация", app:"Загрузка контейнеров", free:"БЕСПЛАТНО", sample:"Пример", shot:"Скриншот",
+    share:"Поделиться ссылкой", calc:"Рассчитать", importBtn:"Импорт CSV/Excel", importBtnShort:"Импорт файла",
+    hCont:"Тип контейнера", hAdd:"Добавить груз", hList:"Список грузов", pasteToggle:"📋 Вставить из Excel (скопируйте и вставьте)",
+    pasteAdd:"Импорт", pasteCancel:"Отмена", pasteHint:"Один груз в строке: название Д Ш В кол-во вес слоёв (пробел/Tab, см и кг)",
+    contInfo:(l,w,h,vol,p)=>"Внутр. размеры "+l+"×"+w+"×"+h+" см ｜ Объём "+vol+" м³ ｜ Макс. загрузка "+(p/1000)+" т",
+    stackHint:"Макс. слоёв = сколько ярусов можно ставить этот груз (включая нижний). Литий-батареи обычно до 3 слоёв.",
+    addBtn:"＋ Добавить груз", noGoods:"Грузов пока нет — добавьте выше или импортируйте файл",
+    emptyTip:"Добавьте груз и нажмите «Рассчитать»", waiting:"Ожидание расчёта…", calcing:"Расчёт…",
+    needCont:"Нужно контейнеров", volUtil:"Использование объёма", loadedN:"Загружено шт.", grossW:"Вес брутто", loadUse:"Использование грузоподъёмности",
+    stuckMsg:n=>"⚠️ "+n+" шт. превышают внутреннее пространство контейнера и не могут быть загружены",
+    lowVolTip:"💡 Низкое использование объёма — попробуйте контейнер меньшего размера для экономии фрахта",
+    cab:n=>"Контейнер "+n, goodsName:"Груз", phName:"Название груза (напр. Коробка A)",
+    lbL:"Длина (см)", lbW:"Ширина (см)", lbH:"Высота (см)", lbQty:"Кол-во", lbKg:"Вес ед. (кг)", lbStack:"Макс. слоёв",
+    tNeedGoods:"Сначала добавьте груз", tFillDims:"Заполните Д/Ш/В", tNeedQty:"Заполните количество",
+    tCalcErr:"Ошибка расчёта: ", tExported:"Скриншот сохранён", tCopied:"Ссылка скопирована — отправьте её, чтобы открыть тот же план",
+    tImportFail:"Не удалось разобрать файл", tImported:n=>"Импортировано грузов: "+n, tPasteEmpty:"Нет корректных данных",
+    tNoCalc:"Сначала рассчитайте", dimUnit:"см", pcs:"шт", kgEach:"кг/шт", stackN:n=>n+" сл.",
+    fileName:"план-загрузки-контейнер",
+    steps:"Порядок погрузки", stepsEmpty:"Сначала рассчитайте", zoneF:"Передняя часть", zoneM:"Средняя часть", zoneR:"Задняя часть",
+    lbUpright:"Без поворота (вертикально)", upYes:"вертик.", customLabel:"Свои размеры…",
+    cuLlb:"Внутр. длина (см)", cuWlb:"Внутр. ширина (см)", cuHlb:"Внутр. высота (см)", cuPlb:"Макс. загрузка (кг)",
+    balTitle:"Распределение веса", balLR:"Лев/Прав", balFB:"Перед/Зад", sideL:"Л", sideR:"П", sideF:"Пд", sideB:"Зд",
+    balWarn:"⚠️ Дисбаланс свыше 60% — рекомендуется перегруппировка",
+    pdfBtn:"Экспорт PDF", pdfCompany:"Название компании для шапки отчёта (необязательно):",
+    rTitle:"Отчёт о плане загрузки", rDate:"Дата", rGoods:"Список грузов", rSteps:"Порядок погрузки", rNoSteps:"(нет)",
+    contLabels:{ "20GP":"20-фут. 20GP", "40GP":"40-фут. 40GP", "40HC":"40-фут. HC 40HC", "45HC":"45-фут. HC 45HC" },
+  },
+};
+
+/* ============ 状态 ============ */
+let goods = [];            // {name,l,w,h,qty,kg,stack,color} 内部单位 cm/kg
+let packResults = null;
+let currentContainerIdx = 0;
+let goodsSeq = 0;
+let lang = localStorage.getItem("zc_lang") || "zh";
+if (!I18N[lang]) lang = "zh";
+let unit = localStorage.getItem("zc_unit") || "cm";   // 显示单位 cm | in（内部始终 cm）
+let customCont = { l: 600, w: 235, h: 240, payload: 20000 }; // 自定义柜型（cm/kg）
+const t = () => I18N[lang];
+const IN2CM = 2.54;
+const toCm = v => unit === "in" ? v * IN2CM : v;
+const dispCm = v => unit === "in" ? +(v / IN2CM).toFixed(1) : +(v.toFixed(1));
+
+function getContainer() {
+  const key = document.getElementById("containerSel").value;
+  if (key === "custom") return { ...customCont };
+  return CONTAINERS[key];
+}
+
+/* ============ 计算 ============ */
+function calc() {
+  if (!goods.length) { toast(t().tNeedGoods); return; }
+  const c = getContainer();
+  showTip(t().calcing);
+  setTimeout(() => {
+    try {
+      packResults = PackLib.packAll(goods, c);
+      currentContainerIdx = 0;
+      renderTabs();
+      renderScene();
+      renderResults();
+      if (document.getElementById("stepsPanel").classList.contains("open")) buildSteps();
+    } catch (e) {
+      console.error(e);
+      toast(t().tCalcErr + e.message);
+    }
+    showTip(null);
+  }, 30);
+}
+
+function renderResults() {
+  const el = document.getElementById("results");
+  const c = getContainer();
+  const cs = packResults.containers;
+  const stuckN = packResults.stuck.length;
+  let totalBoxes = 0;
+  cs.forEach(r => r.placed.forEach(p => { totalBoxes++; }));
+  const cur = cs[currentContainerIdx];
+  const vol = (cur.placed.reduce((s, p) => s + p.L * p.W * p.H, 0)) / 1e6;
+  const volUtil = vol / (c.l * c.w * c.h / 1e6) * 100;
+  const kg = cur.placed.reduce((s, p) => s + p.kg, 0);
+  const kgUtil = kg / c.payload * 100;
+
+  let html = "";
+  if (cs.length > 1) html += chip(cs.length, t().needCont, cs.length > 1 ? "warn" : "good");
+  html += chip(volUtil.toFixed(1) + "%", t().volUtil, volUtil >= 75 ? "good" : "");
+  html += chip(totalBoxes, t().loadedN, "");
+  html += chip(fmtKg(kg) + " kg", t().grossW, "");
+  html += chip(kgUtil.toFixed(0) + "%", t().loadUse, kgUtil > 95 ? "warn" : "");
+  if (stuckN) html += '<span class="msg">' + t().stuckMsg(stuckN) + '</span>';
+  else if (volUtil < 50) html += '<span class="msg">' + t().lowVolTip + '</span>';
+  html += balanceHtml(cur.placed, c);
+  el.innerHTML = html;
+}
+
+/* 偏载/重心校验：前后（沿柜长）与左右（沿柜宽）分布 */
+function balanceHtml(placed, c) {
+  if (!placed.length) return "";
+  let wL = 0, wR = 0, wF = 0, wB = 0, total = 0, cgx = 0, cgy = 0, cgz = 0;
+  for (const p of placed) {
+    total += p.kg;
+    cgx += p.kg * (p.x + p.L / 2); cgy += p.kg * (p.y + p.W / 2); cgz += p.kg * (p.z + p.H / 2);
+    if (p.x + p.L / 2 < c.l / 2) wF += p.kg; else wB += p.kg;
+    if (p.y + p.W / 2 < c.w / 2) wL += p.kg; else wR += p.kg;
+  }
+  if (!total) return "";
+  const pct = w => Math.round(w / total * 100);
+  const pL = pct(wL), pF = pct(wF);
+  const bad = pL > 60 || pL < 40 || pF > 60 || pF < 40;
+  const bar = (a, b, pa, la, lb, cls) =>
+    '<div class="bal-bar ' + cls + '"><div class="' + la + '" style="width:' + pa + '%">' + pa + '%</div>' +
+    '<div class="' + lb + '" style="width:' + (100 - pa) + '%">' + (100 - pa) + '%</div></div>';
+  let h = '<div class="balance"><b>' + t().balTitle + '</b>';
+  h += '<div>' + t().balLR + '</div>' + bar(wL, wR, pL, "l", "r", "bal-lr");
+  h += '<div>' + t().balFB + '</div>' + bar(wF, wB, pF, "f2", "b2", "bal-fb");
+  h += '<div>' + esc(t().sideL) + '/' + esc(t().sideR) + ' · ' + esc(t().sideF) + '/' + esc(t().sideB) + '</div>';
+  if (bad) h += '<div class="bal-warn">' + t().balWarn + '</div>';
+  h += '</div>';
+  return h;
+}
+function chip(v, u, cls) { return '<div class="chip ' + cls + '"><b>' + v + '</b><span class="u">' + u + '</span></div>'; }
+function fmtKg(n) { return n >= 1000 ? (n / 1000).toFixed(1) + "k" : Math.round(n); }
+
+/* ============ Three.js 场景 ============ */
+let renderer, scene, camera, controls, containerMeshes = [];
+
+function initThree() {
+  const wrap = document.querySelector(".canvas-wrap");
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setSize(w, h);
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  wrap.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xe8ecf1);
+
+  camera = new THREE.PerspectiveCamera(45, w / h, 1, 10000);
+  camera.position.set(900, 700, 900);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.7);
+  dl.position.set(600, 1200, 800);
+  scene.add(dl);
+  const dl2 = new THREE.DirectionalLight(0xffffff, 0.3);
+  dl2.position.set(-800, 500, -600);
+  scene.add(dl2);
+
+  window.addEventListener("resize", () => {
+    const w2 = wrap.clientWidth, h2 = wrap.clientHeight;
+    renderer.setSize(w2, h2);
+    camera.aspect = w2 / h2;
+    camera.updateProjectionMatrix();
+  });
+  animate();
+}
+function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+
+function clearScene() {
+  while (containerMeshes.length) {
+    const m = containerMeshes.pop();
+    scene.remove(m);
+    if (m.geometry) m.geometry.dispose();
+    if (m.material) m.material.dispose();
+  }
+}
+
+function buildContainerFrame(c) {
+  const group = new THREE.Group();
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(c.l, 2, c.w), new THREE.MeshLambertMaterial({ color: 0xc8cfda }));
+  floor.position.set(c.l / 2, -1, c.w / 2);
+  group.add(floor);
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(c.l, c.h, c.w)),
+    new THREE.LineBasicMaterial({ color: 0x475569 })
+  );
+  edges.position.set(c.l / 2, c.h / 2, c.w / 2);
+  group.add(edges);
+  const grid = new THREE.GridHelper(Math.max(c.l, c.w), Math.round(Math.max(c.l, c.w) / 100), 0xb0b8c4, 0xd5dae2);
+  grid.position.set(c.l / 2, -1.9, c.w / 2);
+  group.add(grid);
+  containerMeshes.push(group, floor, edges, grid);
+  scene.add(group);
+  return group;
+}
+
+function buildBoxes(placed) {
+  const group = new THREE.Group();
+  for (const p of placed) {
+    const geo = new THREE.BoxGeometry(p.L, p.H, p.W);
+    const mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(p.color), transparent: true, opacity: 0.92 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(p.x + p.L / 2, p.z + p.H / 2, p.y + p.W / 2);
+    group.add(mesh);
+    const edge = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0x1e293b }));
+    edge.position.copy(mesh.position);
+    group.add(edge);
+  }
+  containerMeshes.push(group);
+  scene.add(group);
+  return group;
+}
+
+function fitCamera(c) {
+  const d = Math.max(c.l, c.w, c.h);
+  camera.position.set(c.l * 0.85, d * 0.9, c.w * 1.35);
+  controls.target.set(c.l / 2, c.h / 2.8, c.w / 2);
+  controls.update();
+}
+
+function renderScene() {
+  if (!renderer) initThree();
+  clearScene();
+  const c = getContainer();
+  document.getElementById("emptyTip").style.display = "none";
+  buildContainerFrame(c);
+  const cur = packResults && packResults.containers[currentContainerIdx];
+  if (cur) buildBoxes(cur.placed);
+  fitCamera(c);
+  renderLegend(cur ? cur.placed : []);
+}
+
+/* 首屏预览：无结果时也展示空柜框架 */
+function renderPreview() {
+  if (!renderer) initThree();
+  clearScene();
+  buildContainerFrame(getContainer());
+  fitCamera(getContainer());
+}
+
+function renderLegend(placed) {
+  const el = document.getElementById("legend");
+  if (!placed.length) { el.style.display = "none"; return; }
+  const seen = new Map();
+  placed.forEach(p => {
+    if (!seen.has(p.gi)) seen.set(p.gi, { color: p.color, name: p.name, n: 1 });
+    else seen.get(p.gi).n++;
+  });
+  el.innerHTML = [...seen.values()].map(v =>
+    '<div><span class="dot" style="background:' + v.color + '"></span>' + esc(v.name) + ' × ' + v.n + '</div>'
+  ).join("");
+  el.style.display = "block";
+}
+
+function renderTabs() {
+  const el = document.getElementById("containerTabs");
+  const n = packResults ? packResults.containers.length : 0;
+  if (n <= 1) { el.innerHTML = ""; return; }
+  el.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement("button");
+    b.className = "ctab" + (i === currentContainerIdx ? " active" : "");
+    b.textContent = t().cab(i + 1);
+    b.onclick = () => { currentContainerIdx = i; renderTabs(); renderScene(); renderResults(); if (document.getElementById("stepsPanel").classList.contains("open")) buildSteps(); };
+    el.appendChild(b);
+  }
+}
+
+/* ============ i18n / 单位 应用 ============ */
+function applyI18n() {
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : lang;
+  document.title = t().title;
+  document.getElementById("hTitle").textContent = "📦 " + t().app;
+  document.getElementById("tagFree").textContent = t().free;
+  document.getElementById("btnSample").textContent = t().sample;
+  document.getElementById("btnShot").textContent = t().shot;
+  document.getElementById("btnShare").textContent = t().share;
+  document.getElementById("btnSteps").textContent = t().steps;
+  document.getElementById("btnPdf").textContent = t().pdfBtn;
+  document.getElementById("btnImport").textContent = t().importBtn;
+  document.getElementById("btnCalc").textContent = t().calc;
+  document.getElementById("hCont").textContent = t().hCont;
+  document.getElementById("hAdd").textContent = t().hAdd;
+  document.getElementById("hList").textContent = t().hList;
+  document.getElementById("lbL").textContent = t().lbL;
+  document.getElementById("lbW").textContent = t().lbW;
+  document.getElementById("lbH").textContent = t().lbH;
+  document.getElementById("lbQty").textContent = t().lbQty;
+  document.getElementById("lbKg").textContent = t().lbKg;
+  document.getElementById("lbStack").textContent = t().lbStack;
+  document.getElementById("lbUpright").textContent = t().lbUpright;
+  document.getElementById("stepsTitle").textContent = t().steps;
+  document.getElementById("cuLlb").textContent = t().cuLlb;
+  document.getElementById("cuWlb").textContent = t().cuWlb;
+  document.getElementById("cuHlb").textContent = t().cuHlb;
+  document.getElementById("cuPlb").textContent = t().cuPlb;
+  document.getElementById("stackHint").textContent = t().stackHint;
+  document.getElementById("btnAdd").textContent = t().addBtn;
+  document.getElementById("btnPasteToggle").textContent = t().pasteToggle;
+  document.getElementById("btnPasteAdd").textContent = t().pasteAdd;
+  document.getElementById("btnPasteCancel").textContent = t().pasteCancel;
+  document.getElementById("pasteHint").textContent = t().pasteHint;
+  document.getElementById("gName").placeholder = t().phName;
+  document.getElementById("emptyTipText").textContent = t().emptyTip;
+  // 语言/单位选择器
+  document.getElementById("langSel").innerHTML = LANGS.map(([k, label]) =>
+    '<option value="' + k + '"' + (k === lang ? " selected" : "") + '>' + label + '</option>').join("");
+  document.getElementById("unitSel").innerHTML =
+    '<option value="cm"' + (unit === "cm" ? " selected" : "") + '>cm / kg</option>' +
+    '<option value="in"' + (unit === "in" ? " selected" : "") + '>inch / kg</option>';
+  // 集装箱下拉
+  const sel = document.getElementById("containerSel");
+  const cur = sel.value || "40HC";
+  sel.innerHTML = Object.keys(CONTAINERS).map(k =>
+    '<option value="' + k + '"' + (k === cur ? " selected" : "") + '>' + t().contLabels[k] + '（' + CONTAINERS[k].l + '×' + CONTAINERS[k].w + '×' + CONTAINERS[k].h + ' cm）</option>').join("") +
+    '<option value="custom"' + (cur === "custom" ? " selected" : "") + '>' + t().customLabel + '</option>';
+  document.getElementById("customBox").classList.toggle("open", cur === "custom");
+  const rm = document.getElementById("resultMsg");
+  if (rm) rm.textContent = t().waiting;
+  const gl = document.getElementById("goodsList");
+  if (!goods.length && gl) gl.innerHTML = '<div class="hint">' + t().noGoods + '</div>';
+}
+
+function refreshAll() {
+  applyI18n();
+  updateContainerInfo();
+  renderGoodsList();
+}
+
+function updateContainerInfo() {
+  const c = getContainer();
+  const vol = (c.l * c.w * c.h / 1e6).toFixed(1);
+  document.getElementById("containerInfo").textContent = t().contInfo(c.l, c.w, c.h, vol, c.payload);
+  if (!packResults && renderer) renderPreview(); // 未计算时实时预览柜型
+}
+
+/* 装载步骤：按放置顺序合并同货品，附柜内区位 */
+function buildSteps() {
+  const cur = packResults && packResults.containers[currentContainerIdx];
+  const body = document.getElementById("stepsBody");
+  if (!cur || !cur.placed.length) { body.innerHTML = '<div class="hint">' + t().stepsEmpty + '</div>'; return; }
+  const c = getContainer();
+  const zone = x0 => x0 < c.l / 3 ? t().zoneR : (x0 < 2 * c.l / 3 ? t().zoneM : t().zoneF);
+  // placed 顺序即放置顺序（重货/大件先放）
+  const steps = [];
+  for (const p of cur.placed) {
+    const last = steps[steps.length - 1];
+    if (last && last.gi === p.gi) { last.n++; last.zMin = Math.min(last.zMin, p.z); last.xMin = Math.min(last.xMin, p.x); }
+    else steps.push({ gi: p.gi, name: p.name, color: p.color, n: 1, zMin: p.z, xMin: p.x });
+  }
+  body.innerHTML = steps.map((s, i) => {
+    const layer = Math.round(s.zMin / (c.h / 4)) + 1; // 粗略层位提示
+    return '<div class="step-row"><div class="num">' + (i + 1) + '</div>' +
+      '<span class="dot" style="background:' + s.color + '"></span>' +
+      '<div class="desc"><b>' + esc(s.name) + '</b> × ' + s.n + '<br><span style="color:#94a3b8">' +
+      zone(s.xMin) + ' · ' + t().stackN(Math.max(1, layer)) + '</span></div></div>';
+  }).join("");
+}
+
+function toggleSteps(open) {
+  const el = document.getElementById("stepsPanel");
+  const show = open !== undefined ? open : !el.classList.contains("open");
+  if (show && packResults) buildSteps();
+  el.classList.toggle("open", show);
+}
+
+/* ============ 货物清单 ============ */
+function addGoods() {
+  const name = document.getElementById("gName").value.trim() || (t().goodsName + (goodsSeq + 1));
+  const l = toCm(+document.getElementById("gL").value), w = toCm(+document.getElementById("gW").value),
+        h = toCm(+document.getElementById("gH").value), qty = +document.getElementById("gQty").value,
+        kg = +document.getElementById("gKg").value || 0, stack = +document.getElementById("gStack").value || 5,
+        upright = document.getElementById("gUpright").checked;
+  if (!(l > 0 && w > 0 && h > 0)) { toast(t().tFillDims); return; }
+  if (!(qty > 0)) { toast(t().tNeedQty); return; }
+  goodsSeq++;
+  goods.push({ name, l, w, h, qty, kg, stack, upright, color: PALETTE[(goodsSeq - 1) % PALETTE.length] });
+  ["gName", "gL", "gW", "gH", "gQty", "gKg"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("gStack").value = 5;
+  document.getElementById("gUpright").checked = false;
+  renderGoodsList();
+}
+
+function delGoods(i) { goods.splice(i, 1); renderGoodsList(); }
+
+function renderGoodsList() {
+  document.getElementById("goodsCount").textContent = goods.length;
+  const el = document.getElementById("goodsList");
+  if (!goods.length) { el.innerHTML = '<div class="hint">' + t().noGoods + '</div>'; return; }
+  el.innerHTML = goods.map((g, i) =>
+    '<div class="goods-item"><span class="dot" style="background:' + g.color + '"></span>' +
+    '<div class="info"><div class="name">' + esc(g.name) + '</div>' +
+    '<div class="dim">' + dispCm(g.l) + '×' + dispCm(g.w) + '×' + dispCm(g.h) + ' ' + (unit === "in" ? "in" : t().dimUnit) +
+    ' ｜ ' + g.qty + ' ' + t().pcs + ' ｜ ' + g.kg + t().kgEach + ' ｜ ' + t().stackN(g.stack) +
+    (g.upright ? ' ｜ ⬆' + t().upYes : '') + '</div></div>' +    '<button class="del" data-i="' + i + '">✕</button></div>').join("");
+  el.querySelectorAll(".del").forEach(b => b.onclick = () => delGoods(+b.dataset.i));
+}
+
+/* ============ 示例 ============ */
+function loadSample() {
+  goods = [
+    { name: lang === "zh" ? "纸箱A" : "Box A", l: 60, w: 40, h: 40, qty: 120, kg: 18, stack: 5, color: PALETTE[0] },
+    { name: lang === "zh" ? "纸箱B" : "Box B", l: 50, w: 40, h: 30, qty: 80, kg: 12, stack: 6, color: PALETTE[1] },
+    { name: lang === "zh" ? "木箱" : "Crate", l: 110, w: 80, h: 60, qty: 8, kg: 260, stack: 2, color: PALETTE[2] },
+  ];
+  goodsSeq = 3;
+  renderGoodsList();
+  calc();
+}
+
+/* ============ 导入 CSV / Excel / 粘贴 ============ */
+const HEADERS = {
+  name: ["name", "货品名称", "名称", "货品", "品名", "item", "description", "nombre", "品名", "품명", "название"],
+  l: ["l", "length", "长", "长(cm)", "长cm", "largo", "長さ", "가로", "длина"],
+  w: ["w", "width", "宽", "寬", "宽(cm)", "ancho", "幅", "세로", "ширина"],
+  h: ["h", "height", "高", "高(cm)", "alto", "高さ", "높이", "высота"],
+  qty: ["qty", "quantity", "件数", "数量", "pcs", "cantidad", "数量", "수량", "кол-во"],
+  kg: ["kg", "weight", "重量", "单件重量", "重量(kg)", "peso", "重量", "무게", "вес"],
+  stack: ["stack", "maxstack", "堆叠", "层数", "堆叠层数", "maxstacklayers", "capas", "段数", "적층수", "слои"],
+};
+function normKey(s) {
+  return String(s || "").toLowerCase().replace(/[\s()（）cmkg._-]/g, "");
+}
+function mapHeaders(row) {
+  const idx = {};
+  row.forEach((cell, i) => {
+    const n = normKey(cell);
+    for (const [key, aliases] of Object.entries(HEADERS)) {
+      if (aliases.some(a => normKey(a) === n)) idx[key] = i;
+    }
+  });
+  return idx;
+}
+function rowsToGoods(rows) {
+  if (!rows.length) return 0;
+  const idx = mapHeaders(rows[0]);
+  const hasHeader = ["l", "w", "h"].every(k => idx[k] !== undefined);
+  let n = 0;
+  const dataRows = hasHeader ? rows.slice(1) : rows;
+  const col = hasHeader ? idx : { name: 0, l: 1, w: 2, h: 3, qty: 4, kg: 5, stack: 6 };
+  for (const r of dataRows) {
+    const get = c => (r[c] !== undefined && r[c] !== null && r[c] !== "") ? +r[c] : NaN;
+    const l = get(col.l), w = get(col.w), h = get(col.h), qty = get(col.qty);
+    if (!(l > 0 && w > 0 && h > 0 && qty > 0)) continue;
+    const name = (r[col.name] !== undefined && String(r[col.name]).trim()) ? String(r[col.name]).trim() : (t().goodsName + (goodsSeq + 1));
+    goodsSeq++;
+    goods.push({ name, l, w, h, qty: Math.round(qty), kg: get(col.kg) || 0,
+      stack: (get(col.stack) > 0 ? Math.round(get(col.stack)) : 5),
+      color: PALETTE[(goodsSeq - 1) % PALETTE.length] });
+    n++;
+  }
+  return n;
+}
+
+function parseDelimited(text) {
+  const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const rows = lines.map(line => {
+    const sep = line.includes("\t") ? "\t" : (line.includes(",") ? "," : /\s+/);
+    // 简单 CSV 引号支持
+    if (sep === ",") {
+      const out = [];
+      let cur = "", inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { inQ = !inQ; continue; }
+        if (ch === "," && !inQ) { out.push(cur); cur = ""; continue; }
+        cur += ch;
+      }
+      out.push(cur);
+      return out;
+    }
+    return line.split(sep);
+  });
+  return rows;
+}
+
+function handleFile(file) {
+  const name = file.name.toLowerCase();
+  const reader = new FileReader();
+  reader.onload = e => {
+    let rows = null;
+    try {
+      if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+        const wb = XLSX.read(e.target.result, { type: "array" });
+        rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: "" });
+      } else {
+        const text = e.target.result; // readAsText 已返回字符串
+        rows = parseDelimited(text);
+      }
+      const n = rowsToGoods(rows);
+      if (n) { renderGoodsList(); calc(); toast(t().tImported(n)); }
+      else toast(t().tPasteEmpty);
+    } catch (err) {
+      console.error(err);
+      toast(t().tImportFail);
+    }
+  };
+  if (name.endsWith(".xlsx") || name.endsWith(".xls")) reader.readAsArrayBuffer(file);
+  else reader.readAsText(file);
+}
+
+function importPaste() {
+  const text = document.getElementById("pasteTa").value;
+  const n = rowsToGoods(parseDelimited(text));
+  if (n) {
+    document.getElementById("pasteBox").classList.remove("open");
+    document.getElementById("pasteTa").value = "";
+    renderGoodsList();
+    calc();
+    toast(t().tImported(n));
+  } else toast(t().tPasteEmpty);
+}
+
+/* ============ 分享链接 ============ */
+function encodeState() {
+  const key = document.getElementById("containerSel").value;
+  const st = {
+    v: 1, c: key, u: unit,
+    g: goods.map(g => [g.name, g.l, g.w, g.h, g.qty, g.kg, g.stack, g.upright ? 1 : 0]),
+  };
+  if (key === "custom") st.cd = [customCont.l, customCont.w, customCont.h, customCont.payload];
+  return btoa(unescape(encodeURIComponent(JSON.stringify(st))));
+}
+function decodeState(str) {
+  const st = JSON.parse(decodeURIComponent(escape(atob(str))));
+  if (!st || !Array.isArray(st.g)) return false;
+  if (st.c === "custom" && Array.isArray(st.cd)) {
+    customCont = { l: +st.cd[0] || 600, w: +st.cd[1] || 235, h: +st.cd[2] || 240, payload: +st.cd[3] || 20000 };
+    document.getElementById("containerSel").value = "custom";
+  } else if (st.c && CONTAINERS[st.c]) {
+    document.getElementById("containerSel").value = st.c;
+  }
+  if (st.u === "in" || st.u === "cm") unit = st.u;
+  goods = st.g.map((r, i) => ({
+    name: String(r[0] || (t().goodsName + (i + 1))), l: +r[1], w: +r[2], h: +r[3],
+    qty: +r[4], kg: +r[5] || 0, stack: +r[6] || 5, upright: !!r[7], color: PALETTE[i % PALETTE.length],
+  })).filter(g => g.l > 0 && g.w > 0 && g.h > 0 && g.qty > 0);
+  goodsSeq = goods.length;
+  return goods.length > 0;
+}
+function shareLink() {
+  if (!goods.length) { toast(t().tNeedGoods); return; }
+  const url = location.origin + location.pathname + "#d=" + encodeState();
+  const done = () => toast(t().tCopied);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done).catch(() => fallbackCopy(url, done));
+  } else fallbackCopy(url, done);
+}
+function fallbackCopy(text, done) {
+  const ta = document.createElement("textarea");
+  ta.value = text; document.body.appendChild(ta);
+  ta.select(); document.execCommand("copy");
+  document.body.removeChild(ta);
+  done();
+}
+
+/* ============ 截图 ============ */
+function snapshot() {
+  if (!renderer) { toast(t().tNoCalc); return; }
+  const a = document.createElement("a");
+  a.download = t().fileName + (currentContainerIdx + 1) + ".png";
+  a.href = renderer.domElement.toDataURL("image/png");
+  a.click();
+  toast(t().tExported);
+}
+
+/* ============ 初始化 ============ */
+function initUI() {
+  // URL ?lang= 参数（SEO 落地页跳转用）
+  const qs = new URLSearchParams(location.search);
+  if (qs.get("lang") && I18N[qs.get("lang")]) { lang = qs.get("lang"); localStorage.setItem("zc_lang", lang); }
+  refreshAll();
+  updateContainerInfo();
+
+  document.getElementById("langSel").onchange = e => {
+    lang = e.target.value; localStorage.setItem("zc_lang", lang);
+    refreshAll();
+    if (packResults) { renderResults(); renderTabs(); }
+  };
+  document.getElementById("unitSel").onchange = e => {
+    unit = e.target.value; localStorage.setItem("zc_unit", unit);
+    renderGoodsList(); updateContainerInfo();
+  };
+  document.getElementById("containerSel").onchange = () => {
+    const isCustom = document.getElementById("containerSel").value === "custom";
+    document.getElementById("customBox").classList.toggle("open", isCustom);
+    if (isCustom) {
+      document.getElementById("cuL").value = customCont.l;
+      document.getElementById("cuW").value = customCont.w;
+      document.getElementById("cuH").value = customCont.h;
+      document.getElementById("cuP").value = customCont.payload;
+    }
+    updateContainerInfo();
+  };
+  ["cuL", "cuW", "cuH", "cuP"].forEach(id => {
+    document.getElementById(id).oninput = () => {
+      customCont = {
+        l: +document.getElementById("cuL").value || customCont.l,
+        w: +document.getElementById("cuW").value || customCont.w,
+        h: +document.getElementById("cuH").value || customCont.h,
+        payload: +document.getElementById("cuP").value || customCont.payload,
+      };
+      updateContainerInfo();
+    };
+  });
+  document.getElementById("btnSteps").onclick = () => toggleSteps();
+  document.getElementById("stepsClose").onclick = () => toggleSteps(false);
+  document.getElementById("btnPdf").onclick = exportPdf;
+  document.getElementById("btnAdd").onclick = addGoods;
+  document.getElementById("btnCalc").onclick = calc;
+  document.getElementById("btnSample").onclick = loadSample;
+  document.getElementById("btnShot").onclick = snapshot;
+  document.getElementById("btnShare").onclick = shareLink;
+  document.getElementById("btnImport").onclick = () => document.getElementById("fileInput").click();
+  document.getElementById("fileInput").onchange = e => {
+    if (e.target.files.length) handleFile(e.target.files[0]);
+    e.target.value = "";
+  };
+  document.getElementById("btnPasteToggle").onclick = () =>
+    document.getElementById("pasteBox").classList.toggle("open");
+  document.getElementById("btnPasteAdd").onclick = importPaste;
+  document.getElementById("btnPasteCancel").onclick = () =>
+    document.getElementById("pasteBox").classList.remove("open");
+
+  // 分享链接自动恢复
+  if (location.hash.startsWith("#d=")) {
+    try {
+      if (decodeState(location.hash.slice(3))) {
+        refreshAll();
+        calc();
+        history.replaceState(null, "", location.pathname);
+        return;
+      }
+    } catch (e) { console.error(e); }
+  }
+  renderPreview();
+}
+
+/* ============ PDF 报告 ============ */
+function exportPdf() {
+  if (!packResults || !packResults.containers.length) { toast(t().tNoCalc); return; }
+  let company = localStorage.getItem("zc_company") || "";
+  if (!company) {
+    company = prompt(t().pdfCompany) || "";
+    if (company) localStorage.setItem("zc_company", company);
+  }
+  const done = async () => {
+    showTip(t().calcing);
+    // 逐柜渲染并截图
+    const shots = [];
+    const savedIdx = currentContainerIdx;
+    for (let i = 0; i < packResults.containers.length && i < 12; i++) {
+      currentContainerIdx = i;
+      renderScene();
+      await new Promise(r => setTimeout(r, 60));
+      shots.push(renderer.domElement.toDataURL("image/png"));
+    }
+    currentContainerIdx = savedIdx;
+    renderScene(); renderTabs(); renderResults();
+    showTip(null);
+    openReport(company, shots);
+  };
+  done();
+}
+
+function openReport(company, shots) {
+  const c = getContainer();
+  const date = new Date().toLocaleDateString(lang === "zh" ? "zh-CN" : lang);
+  let contHtml = "";
+  packResults.containers.forEach((ct, i) => {
+    const vol = (ct.placed.reduce((s, p) => s + p.L * p.W * p.H, 0)) / 1e6;
+    const volUtil = vol / (c.l * c.w * c.h / 1e6) * 100;
+    const kg = ct.placed.reduce((s, p) => s + p.kg, 0);
+    const steps = [];
+    for (const p of ct.placed) {
+      const last = steps[steps.length - 1];
+      if (last && last.gi === p.gi) last.n++;
+      else steps.push({ gi: p.gi, name: p.name, n: 1 });
+    }
+    contHtml += '<div class="cont"><h2>' + t().cab(i + 1) + '</h2>' +
+      '<p>' + t().volUtil + ': <b>' + volUtil.toFixed(1) + '%</b> ｜ ' + t().loadedN + ': <b>' + ct.placed.length + '</b> ｜ ' +
+      t().grossW + ': <b>' + Math.round(kg) + ' kg</b></p>' +
+      (shots[i] ? '<img class="shot" src="' + shots[i] + '">' : '') +
+      '<h3>' + t().rSteps + '</h3><ol class="rsteps">' +
+      steps.map(s => '<li>' + esc(s.name) + ' × ' + s.n + '</li>').join("") + '</ol></div>';
+  });
+  const goodsRows = goods.map(g =>
+    '<tr><td>' + esc(g.name) + '</td><td>' + g.l + '</td><td>' + g.w + '</td><td>' + g.h + '</td>' +
+    '<td>' + g.qty + '</td><td>' + g.kg + '</td><td>' + g.stack + '</td><td>' + (g.upright ? t().upYes : "-") + '</td></tr>').join("");
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + esc(t().rTitle) + '</title><style>' +
+    'body{font-family:-apple-system,"PingFang SC",sans-serif;color:#1a1a1a;margin:32px;max-width:900px}' +
+    'h1{font-size:22px;border-bottom:3px solid #2563eb;padding-bottom:8px}' +
+    '.co{font-size:13px;color:#64748b}.cont{page-break-inside:avoid;margin:24px 0;border:1px solid #e2e5ea;border-radius:8px;padding:16px}' +
+    '.cont h2{font-size:16px;margin:0 0 8px}.shot{width:100%;max-width:640px;border:1px solid #e2e5ea;border-radius:4px}' +
+    '.rsteps{font-size:13px;columns:2;column-gap:32px}.rsteps li{margin:2px 0}' +
+    'table{border-collapse:collapse;width:100%;font-size:12px;margin:12px 0}' +
+    'th,td{border:1px solid #d3d9e2;padding:5px 8px;text-align:left}th{background:#f0f3f8}' +
+    '@media print{body{margin:12mm}}</style></head><body>' +
+    (company ? '<div class="co"><b style="font-size:16px;color:#1a1a1a">' + esc(company) + '</b></div>' : '') +
+    '<h1>📦 ' + esc(t().rTitle) + '</h1>' +
+    '<p class="co">' + t().rDate + ': ' + date + ' ｜ ' + esc(t().contLabels ? "" : "") +
+    document.getElementById("containerSel").value + ' ｜ ' + c.l + '×' + c.w + '×' + c.h + ' cm</p>' +
+    '<h3>' + t().rGoods + '</h3>' +
+    '<table><tr><th>#</th><th>L(cm)</th><th>W(cm)</th><th>H(cm)</th><th>' + t().lbQty + '</th><th>kg</th><th>' + t().lbStack + '</th><th>' + t().upYes + '</th></tr>' +
+    goodsRows + '</table>' + contHtml +
+    '<p class="co" style="margin-top:32px">📦 ' + esc(t().app) + '</p>' +
+    '<script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script>' +
+    '</body></html>';
+  const w = window.open("", "_blank");
+  if (!w) { toast(t().tExported); return; }
+  w.document.write(html);
+  w.document.close();
+}
+
+/* ============ 工具 ============ */
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.style.display = "block";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.style.display = "none", 2600);
+}
+function showTip(msg) {
+  const el = document.getElementById("toast");
+  if (msg) { el.textContent = msg; el.style.display = "block"; }
+  else el.style.display = "none";
+}
+
+initUI();
+</script>
+</body>
+</html>
