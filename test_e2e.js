@@ -89,6 +89,28 @@ const chromium = (process.env.BROWSER === "webkit") ? pw.webkit : pw.chromium;
   const sm = require("fs").existsSync("seo/sitemap.xml"), rb = require("fs").existsSync("seo/robots.txt");
   check("sitemap.xml + robots.txt 已生成", sm && rb, "");
 
+  /* 3e. 粘贴文件名 → 智能指引；拖放文件 → 导入 */
+  await page.click("#btnPasteToggle");
+  await page.fill("#pasteTa", "Packing List装箱单-B-UG - EEW20260207.xlsx");
+  await page.click("#btnPasteAdd");
+  await page.waitForTimeout(300);
+  const guideToast = await page.textContent("#toast");
+  check("粘贴文件名给出指引", /Excel|导入/.test(guideToast), guideToast.trim().slice(0, 30));
+  await page.fill("#pasteTa", "");
+  // 拖放 CSV 文件（模拟 drop 事件）
+  const dropOk = await page.evaluate(() => {
+    const dt = new DataTransfer();
+    dt.items.add(new File(["钢架\t120\t80\t90\t5\t55\t2"], "drop.csv", { type: "text/csv" }));
+    const ev = new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true });
+    document.dispatchEvent(ev);
+    return ev.defaultPrevented;
+  });
+  await page.waitForTimeout(1200);
+  const dropCount = await page.evaluate(() => goods.length);
+  check("拖放文件导入", dropOk && dropCount >= 1, dropCount + " 项");
+  await page.evaluate(() => { goods = []; renderGoodsList(); });
+  await page.waitForTimeout(800);
+
   /* 4. 粘贴导入（模拟 Excel TSV） */
   await page.click("#btnPasteToggle");
   await page.fill("#pasteTa", "钢架\t120\t80\t90\t30\t55\t2\n包装膜\t30\t30\t20\t500\t0.5\t8");

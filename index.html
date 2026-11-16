@@ -1185,7 +1185,13 @@ function handleFile(file) {
 }
 
 function importPaste() {
-  const text = document.getElementById("pasteTa").value;
+  const text = document.getElementById("pasteTa").value.trim();
+  // 场景识别：粘贴的是文件名而非表格数据（常见误操作：在 Finder/桌面复制了文件）
+  if (/^[^\n\t]*\.(xlsx|xls|csv|txt)\s*$/i.test(text) && !text.includes("\t") && !text.includes(",")) {
+    toast(isZhLang() ? "检测到您粘贴的是文件名，不是表格数据。请打开 Excel 文件 → 选中数据区域 → 复制（Ctrl+C）→ 再粘贴到这里；也可以直接把 Excel 文件拖进页面，或用「导入文件」按钮选择它"
+                     : "That looks like a file name, not table data. Open the Excel file, select the data range and copy (Ctrl+C), then paste here — or simply drag the Excel file onto this page, or use the Import file button.");
+    return;
+  }
   const n = rowsToGoodsFromRows(ImportLib.parseDelimited(text));
   if (n) {
     document.getElementById("pasteBox").classList.remove("open");
@@ -1195,6 +1201,7 @@ function importPaste() {
     toast(t().tImported(n));
   } else toast(t().tPasteEmpty);
 }
+function isZhLang() { return lang === "zh" || lang === "zhTW"; }
 
 /* ============ 本地方案库（localStorage） ============ */
 function getPlans() { try { return JSON.parse(localStorage.getItem("zc_plans") || "[]"); } catch (e) { return []; } }
@@ -1670,6 +1677,13 @@ function initUI() {
   document.getElementById("btnShot").onclick = snapshot;
   document.getElementById("btnShare").onclick = shareLink;
   document.getElementById("btnImport").onclick = () => document.getElementById("fileInput").click();
+  // 拖放文件到页面 = 导入
+  document.addEventListener("dragover", e => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
+  document.addEventListener("drop", e => {
+    e.preventDefault();
+    const f = [...(e.dataTransfer.files || [])].find(x => /\.(xlsx|xls|csv|txt)$/i.test(x.name));
+    if (f) { handleFile(f); toast(isZhLang() ? "正在导入 " + f.name : "Importing " + f.name); }
+  });
   document.getElementById("fileInput").onchange = e => {
     if (e.target.files.length) handleFile(e.target.files[0]);
     e.target.value = "";
