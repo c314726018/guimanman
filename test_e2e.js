@@ -237,6 +237,40 @@ const { chromium } = require("playwright-core");
   check("报告语言选择器（Auto+25）", rselOpts >= 26, String(rselOpts));
   await page.selectOption("#selReportTpl", "det");
 
+  /* 11f. 拖拽撤销 + 手机端菜单 */
+  await page.click("#btnEdit");
+  await page.waitForTimeout(300);
+  const undoRes = await page.evaluate(() => {
+    const b = packResults.containers[0].placed[0];
+    const orig = b.x;
+    undoStack.push({ box: b, x: orig, y: b.y });
+    b.x = orig + 50;
+    undoDrag();
+    return { back: b.x === orig, stackLen: undoStack.length };
+  });
+  check("拖拽撤销恢复原位", undoRes.back, JSON.stringify(undoRes));
+  await page.click("#btnEdit");
+  const undoBtnHidden = await page.evaluate(() => document.getElementById("btnUndo").style.display === "none");
+  check("退出编辑后撤销按钮隐藏", undoBtnHidden, "");
+  // 手机端菜单
+  const mobMenu = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await mobMenu.goto("http://127.0.0.1:8642/index.html", { waitUntil: "networkidle" });
+  const moreVisible = await mobMenu.evaluate(() => getComputedStyle(document.getElementById("btnMore")).display !== "none");
+  check("手机端 ⚙ 按钮可见", moreVisible, "");
+  await mobMenu.click("#btnMore");
+  await mobMenu.waitForTimeout(200);
+  const menuOpen = await mobMenu.evaluate(() => {
+    const m = document.getElementById("moreMenu");
+    return m.classList.contains("open") && m.querySelectorAll("button").length >= 8;
+  });
+  check("手机端菜单展开（≥8 项）", menuOpen, "");
+  const menuCovers = await mobMenu.evaluate(() => {
+    const b = document.getElementById("btnSteps");
+    return b.offsetHeight > 0; // 菜单内的步骤按钮可见
+  });
+  check("菜单含装载步骤/PDF", menuCovers, "");
+  await mobMenu.close();
+
   /* 12. PDF 导出（stub window.open 验证调用） */
   await page.evaluate(() => { window.__pdfOpened = false; window.open = () => { window.__pdfOpened = true; return { document: { write() {}, close() {} }, print() {} }; }; });
   await page.click("#btnPdf");

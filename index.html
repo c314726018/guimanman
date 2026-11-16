@@ -20,6 +20,19 @@
   .btn-ghost { background:#334155; color:#cbd5e1; }
   .btn-ghost:hover { background:#475569; }
   .btn.active-edit { background:#d97706; color:#fff; }
+  #btnMore { display:none; }
+  #moreMenu { display:contents; }
+  .canvas-btn { position:absolute; z-index:12; }
+
+  /* 手机端：更多菜单 */
+  @media (max-width: 900px) {
+    #btnMore { display:inline-block; }
+    #moreMenu { display:none; position:fixed; top:52px; right:8px; z-index:60; flex-direction:column; gap:8px;
+                background:#1e293b; padding:12px; border-radius:10px; box-shadow:0 6px 24px rgba(0,0,0,.35); min-width:180px; }
+    #moreMenu.open { display:flex; }
+    #moreMenu .btn { width:100%; text-align:left; }
+    #moreMenu select { width:100%; }
+  }
   #langSel, #unitSel { width:auto; padding:6px 8px; font-size:13px; border-radius:6px; border:1px solid #475569; background:#334155; color:#e2e8f0; }
   .main { display:flex; flex:1; overflow:hidden; }
 
@@ -127,20 +140,24 @@
   <div class="spacer"></div>
   <select id="langSel" title="Language"></select>
   <select id="unitSel" title="Units"></select>
-  <button class="btn btn-ghost" id="btnImport">导入 CSV/Excel</button>
-  <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.txt" style="display:none">
-  <button class="btn btn-ghost" id="btnSample">载入示例</button>
-  <button class="btn btn-ghost" id="btnShare">分享链接</button>
-  <button class="btn btn-ghost" id="btnLogo">Logo</button>
-  <input type="file" id="logoInput" accept="image/*" style="display:none">
-  <button class="btn btn-ghost" id="btnSavePlan">保存方案</button>
-  <button class="btn btn-ghost" id="btnSteps">装载步骤</button>
+  <div id="moreMenu">
+    <button class="btn btn-ghost" id="btnSample">载入示例</button>
+    <button class="btn btn-ghost" id="btnImport">导入 CSV/Excel</button>
+    <button class="btn btn-ghost" id="btnLogo">Logo</button>
+    <button class="btn btn-ghost" id="btnSavePlan">保存方案</button>
+    <button class="btn btn-ghost" id="btnShare">分享链接</button>
+    <button class="btn btn-ghost" id="btnSteps">装载步骤</button>
+    <button class="btn btn-ghost" id="btnPdf">导出 PDF</button>
+    <button class="btn btn-ghost" id="btnShot">导出截图</button>
+    <select id="selReportLang" title="Report language"></select>
+    <select id="selReportTpl" title="Template"><option value="std">A</option><option value="det">A+</option></select>
+  </div>
+  <button class="btn btn-ghost" id="btnMore">⚙</button>
+  <button class="btn btn-ghost" id="btnUndo" style="display:none">↩</button>
   <button class="btn btn-ghost" id="btnEdit">✎</button>
-  <select id="selReportLang" title="Report language"></select>
-  <select id="selReportTpl" title="Template"><option value="std">A</option><option value="det">A+</option></select>
-  <button class="btn btn-ghost" id="btnPdf">导出 PDF</button>
-  <button class="btn btn-ghost" id="btnShot">导出截图</button>
   <button class="btn btn-primary" id="btnCalc">开始计算</button>
+  <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.txt" style="display:none">
+  <input type="file" id="logoInput" accept="image/*" style="display:none">
 </header>
 
 <div class="main">
@@ -647,6 +664,8 @@ function calc(silent) {
       renderScene();
       renderResults();
       if (document.getElementById("stepsPanel").classList.contains("open")) buildSteps();
+      undoStack = []; // 新计算重置撤销栈
+      updateUndoBtn();
       if (!silent) toast(t().tDone);
     } catch (e) {
       console.error(e);
@@ -1108,6 +1127,9 @@ function savePlan() {
     data: { c: document.getElementById("containerSel").value, u: unit, g: serializeGoods(),
             cd: document.getElementById("containerSel").value === "custom" ? [customCont.l, customCont.w, customCont.h, customCont.payload] : null,
             gap: +document.getElementById("advGap").value || 0,
+            rf: +document.getElementById("advReefer").value || 0,
+            dh: +document.getElementById("advDoor").value || 0,
+            st: Math.max(1, +document.getElementById("advSets").value || 1),
             pal: { on: document.getElementById("palletChk").checked,
                    l: +document.getElementById("paL").value, w: +document.getElementById("paW").value,
                    h: +document.getElementById("paH").value, p: +document.getElementById("paP").value } } });
@@ -1128,6 +1150,9 @@ function loadPlan(i) {
   goods = deserializeGoods(d.g);
   goodsSeq = goods.length;
   document.getElementById("advGap").value = d.gap || 0;
+  document.getElementById("advReefer").value = d.rf || 0;
+  document.getElementById("advDoor").value = d.dh || 0;
+  document.getElementById("advSets").value = d.st || 1;
   if (d.pal) {
     document.getElementById("palletChk").checked = !!d.pal.on;
     if (d.pal.l) { document.getElementById("paL").value = d.pal.l; document.getElementById("paW").value = d.pal.w;
@@ -1166,6 +1191,7 @@ function handleLogo(file) {
 
 /* ============ 编辑模式：拖拽微调 ============ */
 let editMode = false, dragBox = null, dragMesh = null;
+let undoStack = []; // 拖拽撤销栈：{box, x, y}
 const raycaster = new THREE.Raycaster(), dragPtr = new THREE.Vector2();
 const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
@@ -1174,6 +1200,7 @@ function toggleEdit() {
   const b = document.getElementById("btnEdit");
   b.classList.toggle("active-edit", editMode);
   controls.enabled = !editMode;
+  updateUndoBtn();
   toast(t().editMode);
 }
 
@@ -1214,7 +1241,10 @@ function onCanvasUp() {
   const nx = dragMesh.position.x - dragBox.L / 2;
   const ny = dragMesh.position.z - dragBox.W / 2;
   if (validMove(dragBox, nx, ny, c)) {
+    undoStack.push({ box: dragBox, x: dragBox.x, y: dragBox.y });
+    if (undoStack.length > 50) undoStack.shift();
     dragBox.x = nx; dragBox.y = ny;
+    updateUndoBtn();
     toast(t().editedOK);
   } else toast(t().editedBad);
   dragBox = null; dragMesh = null;
@@ -1244,6 +1274,18 @@ function validMove(box, nx, ny, c) {
     if (area < box.L * box.W * (goods[box.gi].overhang || 0.7)) return false;
   }
   return true;
+}
+
+function updateUndoBtn() {
+  document.getElementById("btnUndo").style.display = (editMode && undoStack.length) ? "inline-block" : "none";
+}
+function undoDrag() {
+  const s = undoStack.pop();
+  if (!s) return;
+  s.box.x = s.x; s.box.y = s.y;
+  renderScene();
+  renderResults();
+  updateUndoBtn();
 }
 
 /* ============ 分享链接 ============ */
@@ -1371,6 +1413,23 @@ function initUI() {
   document.getElementById("stepsClose").onclick = () => toggleSteps(false);
   document.getElementById("btnPdf").onclick = exportPdf;
   document.getElementById("btnEdit").onclick = toggleEdit;
+  document.getElementById("btnEdit").onclick = toggleEdit;
+  document.getElementById("btnUndo").onclick = undoDrag;
+  document.getElementById("btnMore").onclick = e => {
+    e.stopPropagation();
+    document.getElementById("moreMenu").classList.toggle("open");
+  };
+  document.addEventListener("click", e => {
+    const menu = document.getElementById("moreMenu");
+    if (menu.classList.contains("open") && !menu.contains(e.target) && e.target.id !== "btnMore")
+      menu.classList.remove("open");
+  });
+  document.addEventListener("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && editMode && undoStack.length) {
+      e.preventDefault();
+      undoDrag();
+    }
+  });
   document.getElementById("btnSavePlan").onclick = savePlan;
   document.getElementById("btnLogo").onclick = () => document.getElementById("logoInput").click();
   const rsel = document.getElementById("selReportLang");
