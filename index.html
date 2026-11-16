@@ -69,6 +69,13 @@
   .paste-actions { display:flex; gap:8px; margin-top:8px; }
   .paste-actions .btn { flex:1; padding:7px; }
   .btn-green { background:#1a9a5c; color:#fff; }
+  .rec-card { display:flex; justify-content:space-between; align-items:center; gap:8px; border:1px solid #eceef0; border-radius:12px; padding:10px 14px; margin-bottom:8px; font-size:13px; background:#fff; cursor:pointer; transition:all .15s; }
+  .rec-card:hover { box-shadow:0 2px 10px rgba(0,0,0,.08); }
+  .rec-card.best { border-color:#1a9a5c; background:#f0faf4; }
+  .rec-card b { font-size:14px; }
+  .rec-card.best b::before { content:"★ "; color:#1a9a5c; }
+  .rec-card .r-sub { color:#8a9099; font-size:12px; display:block; }
+  .rec-card.unfit { opacity:.5; cursor:not-allowed; }
   .goods-list { margin-top:8px; }
   .goods-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #eceef0; border-radius:12px; margin-bottom:8px; font-size:13px; background:#fff; transition:box-shadow .15s; }
   .goods-item:hover { box-shadow:0 2px 10px rgba(0,0,0,.07); }
@@ -216,6 +223,12 @@
       </div>
     </div>
 
+    <div class="sec" id="recSec" style="display:none">
+      <h3 id="recTitle">方案推荐</h3>
+      <div id="recList"></div>
+      <div class="hint" id="recLCLHint" style="display:none"></div>
+    </div>
+
     <div class="sec">
       <h3 id="hAdd">添加货物</h3>
       <input type="text" id="gName">
@@ -340,7 +353,7 @@ const I18N = {
   zh: {
     title:"柜满满 — 免费装柜计算器｜集装箱装载优化", app:"柜满满", free:"免费", sample:"载入示例", shot:"导出截图",
     share:"分享链接", calc:"开始计算", importBtn:"导入 CSV/Excel", importBtnShort:"导入文件",
-    hCont:"集装箱型号", hAdd:"添加货物", hList:"货物清单", pasteToggle:"📋 粘贴导入（Excel 复制后直接粘贴）",
+    hCont:"集装箱型号", recTitle:"方案推荐", recRel:"相对运费", recLCL:"货量较小，可考虑拼箱（LCL）", hAdd:"添加货物", hList:"货物清单", pasteToggle:"📋 粘贴导入（Excel 复制后直接粘贴）",
     pasteAdd:"确认导入", pasteCancel:"取消", pasteHint:"每行一条：名称 长 宽 高 件数 重量 堆叠层数（空格或 Tab 分隔，单位 cm/kg）",
     contInfo:(l,w,h,vol,p)=>"内尺寸 "+l+"×"+w+"×"+h+" cm ｜ 容积 "+vol+" m³ ｜ 额定载重 "+(p/1000)+" 吨",
     stackHint:"堆叠层数 = 该货品最多允许几层叠放（含底层）。锂电池等危险品通常限 3 层。",
@@ -372,7 +385,7 @@ const I18N = {
   en: {
     title:"GuiManMan — Free Container Load Planner | 3D Load Optimization", app:"GuiManMan", free:"FREE", sample:"Load Sample", shot:"Export Image",
     share:"Share Link", calc:"Calculate", importBtn:"Import CSV/Excel", importBtnShort:"Import file",
-    hCont:"Container Type", hAdd:"Add Cargo", hList:"Cargo List", pasteToggle:"📋 Paste from Excel (copy & paste here)",
+    hCont:"Container Type", recTitle:"Plan suggestions", recRel:"Relative freight", recLCL:"Small volume — consider LCL consolidation", hAdd:"Add Cargo", hList:"Cargo List", pasteToggle:"📋 Paste from Excel (copy & paste here)",
     pasteAdd:"Import", pasteCancel:"Cancel", pasteHint:"One item per line: name L W H qty weight maxStack (space/Tab separated, cm & kg)",
     contInfo:(l,w,h,vol,p)=>"Internal "+l+"×"+w+"×"+h+" cm ｜ Volume "+vol+" m³ ｜ Max payload "+(p/1000)+" t",
     stackHint:"Max stack = how many layers this item may be stacked (including the bottom one). Lithium batteries are usually limited to 3.",
@@ -404,7 +417,7 @@ const I18N = {
   es: {
     title:"GuiManMan — Planificador de Carga de Contenedores Gratis", app:"GuiManMan", free:"GRATIS", sample:"Ejemplo", shot:"Exportar imagen",
     share:"Compartir enlace", calc:"Calcular", importBtn:"Importar CSV/Excel", importBtnShort:"Importar archivo",
-    hCont:"Tipo de contenedor", hAdd:"Agregar carga", hList:"Lista de carga", pasteToggle:"📋 Pegar desde Excel (copie y pegue aquí)",
+    hCont:"Tipo de contenedor", recTitle:"Sugerencias de plan", recRel:"Flete relativo", recLCL:"Volumen pequeño — considere consolidación (LCL)", hAdd:"Agregar carga", hList:"Lista de carga", pasteToggle:"📋 Pegar desde Excel (copie y pegue aquí)",
     pasteAdd:"Importar", pasteCancel:"Cancelar", pasteHint:"Un artículo por línea: nombre L A H cant peso capas (espacio/Tab, cm y kg)",
     contInfo:(l,w,h,vol,p)=>"Interior "+l+"×"+w+"×"+h+" cm ｜ Volumen "+vol+" m³ ｜ Carga máx. "+(p/1000)+" t",
     stackHint:"Capas máximas = cuántas capas se puede apilar este artículo (incluida la inferior). Baterías de litio: normalmente 3.",
@@ -436,7 +449,7 @@ const I18N = {
   ja: {
     title:"GuiManMan — 無料コンテナ積載計算", app:"GuiManMan", free:"無料", sample:"サンプル読込", shot:"画像書き出し",
     share:"共有リンク", calc:"計算開始", importBtn:"CSV/Excel取込", importBtnShort:"ファイル取込",
-    hCont:"コンテナ種別", hAdd:"貨物追加", hList:"貨物リスト", pasteToggle:"📋 Excelから貼り付け（コピーして貼付）",
+    hCont:"コンテナ種別", recTitle:"プラン提案", recRel:"相対運賃", recLCL:"数量が少ないためLCL混載も検討", hAdd:"貨物追加", hList:"貨物リスト", pasteToggle:"📋 Excelから貼り付け（コピーして貼付）",
     pasteAdd:"取込", pasteCancel:"キャンセル", pasteHint:"1行1品目：品名 長さ 幅 高さ 数量 重量 最大段数（空白/Tab区切り、cm・kg）",
     contInfo:(l,w,h,vol,p)=>"内部寸法 "+l+"×"+w+"×"+h+" cm ｜ 容積 "+vol+" m³ ｜ 最大積載量 "+(p/1000)+" t",
     stackHint:"最大段数 = この品目を何段まで積めるか（底段を含む）。リチウムイオン電池は通常3段まで。",
@@ -468,7 +481,7 @@ const I18N = {
   ko: {
     title:"GuiManMan — 무료 컨테이너 적재 계산기", app:"GuiManMan", free:"무료", sample:"예시 불러오기", shot:"이미지 내보내기",
     share:"공유 링크", calc:"계산 시작", importBtn:"CSV/Excel 가져오기", importBtnShort:"파일 가져오기",
-    hCont:"컨테이너 유형", hAdd:"화물 추가", hList:"화물 목록", pasteToggle:"📋 Excel 붙여넣기 (복사 후 여기에 붙여넣기)",
+    hCont:"컨테이너 유형", recTitle:"플랜 추천", recRel:"상대 운임", recLCL:"물량이 적어 LCL 혼적 고려", hAdd:"화물 추가", hList:"화물 목록", pasteToggle:"📋 Excel 붙여넣기 (복사 후 여기에 붙여넣기)",
     pasteAdd:"가져오기", pasteCancel:"취소", pasteHint:"한 줄에 하나: 품명 가로 세로 높이 수량 무게 최대적층수 (공백/탭 구분, cm·kg)",
     contInfo:(l,w,h,vol,p)=>"내부 치수 "+l+"×"+w+"×"+h+" cm ｜ 부피 "+vol+" m³ ｜ 최대 적재량 "+(p/1000)+" t",
     stackHint:"최대 적층수 = 이 품목을 쌓을 수 있는 최대 층수(바닥 층 포함). 리튬전지는 보통 3층까지.",
@@ -500,7 +513,7 @@ const I18N = {
   ru: {
     title:"GuiManMan — Бесплатный калькулятор загрузки контейнеров", app:"GuiManMan", free:"БЕСПЛАТНО", sample:"Пример", shot:"Скриншот",
     share:"Поделиться ссылкой", calc:"Рассчитать", importBtn:"Импорт CSV/Excel", importBtnShort:"Импорт файла",
-    hCont:"Тип контейнера", hAdd:"Добавить груз", hList:"Список грузов", pasteToggle:"📋 Вставить из Excel (скопируйте и вставьте)",
+    hCont:"Тип контейнера", recTitle:"Варианты размещения", recRel:"Отн. стоимость фрахта", recLCL:"Мало груза — рассмотрите сборный (LCL)", hAdd:"Добавить груз", hList:"Список грузов", pasteToggle:"📋 Вставить из Excel (скопируйте и вставьте)",
     pasteAdd:"Импорт", pasteCancel:"Отмена", pasteHint:"Один груз в строке: название Д Ш В кол-во вес слоёв (пробел/Tab, см и кг)",
     contInfo:(l,w,h,vol,p)=>"Внутр. размеры "+l+"×"+w+"×"+h+" см ｜ Объём "+vol+" м³ ｜ Макс. загрузка "+(p/1000)+" т",
     stackHint:"Макс. слоёв = сколько ярусов можно ставить этот груз (включая нижний). Литий-батареи обычно до 3 слоёв.",
@@ -532,7 +545,7 @@ const I18N = {
   vi: {
     title:"GuiManMan — Tính toán xếp container miễn phí", app:"GuiManMan", free:"MIỄN PHÍ", sample:"Ví dụ mẫu", shot:"Xuất ảnh",
     share:"Chia sẻ liên kết", calc:"Tính toán", importBtn:"Nhập CSV/Excel", importBtnShort:"Nhập tệp",
-    hCont:"Loại container", hAdd:"Thêm hàng hóa", hList:"Danh sách hàng", pasteToggle:"📋 Dán từ Excel (sao chép và dán vào đây)",
+    hCont:"Loại container", recTitle:"Gợi ý phương án", recRel:"Cước tương đối", recLCL:"Khối lượng nhỏ — cân nhắc đóng lẻ (LCL)", hAdd:"Thêm hàng hóa", hList:"Danh sách hàng", pasteToggle:"📋 Dán từ Excel (sao chép và dán vào đây)",
     pasteAdd:"Nhập", pasteCancel:"Hủy", pasteHint:"Mỗi dòng một mặt hàng: tên Dài Rộng Cao số lượng khối lượng số tầng (dấu cách/Tab, cm và kg)",
     contInfo:(l,w,h,vol,p)=>"Kích thước trong "+l+"×"+w+"×"+h+" cm ｜ Thể tích "+vol+" m³ ｜ Tải trọng tối đa "+(p/1000)+" tấn",
     stackHint:"Số tầng tối đa = số tầng mặt hàng này được xếp chồng (gồm tầng đáy). Pin lithium thường giới hạn 3 tầng.",
@@ -564,7 +577,7 @@ const I18N = {
   pt: {
     title:"GuiManMan — Calculadora Gratuita de Carga de Contêineres", app:"GuiManMan", free:"GRÁTIS", sample:"Exemplo", shot:"Exportar imagem",
     share:"Compartilhar link", calc:"Calcular", importBtn:"Importar CSV/Excel", importBtnShort:"Importar arquivo",
-    hCont:"Tipo de contêiner", hAdd:"Adicionar carga", hList:"Lista de carga", pasteToggle:"📋 Colar do Excel (copie e cole aqui)",
+    hCont:"Tipo de contêiner", recTitle:"Sugestões de plano", recRel:"Frete relativo", recLCL:"Volume pequeno — considere consolidação (LCL)", hAdd:"Adicionar carga", hList:"Lista de carga", pasteToggle:"📋 Colar do Excel (copie e cole aqui)",
     pasteAdd:"Importar", pasteCancel:"Cancelar", pasteHint:"Um item por linha: nome Compr Larg Alt qtd peso camadas (espaço/Tab, cm e kg)",
     contInfo:(l,w,h,vol,p)=>"Interno "+l+"×"+w+"×"+h+" cm ｜ Volume "+vol+" m³ ｜ Carga máx. "+(p/1000)+" t",
     stackHint:"Camadas máximas = quantas camadas este item pode ser empilhado (incluindo a inferior). Baterias de lítio geralmente até 3.",
@@ -596,7 +609,7 @@ const I18N = {
   de: {
     title:"GuiManMan — Kostenloser Container-Ladungsplaner", app:"GuiManMan", free:"KOSTENLOS", sample:"Beispiel laden", shot:"Bild exportieren",
     share:"Link teilen", calc:"Berechnen", importBtn:"CSV/Excel importieren", importBtnShort:"Datei importieren",
-    hCont:"Container-Typ", hAdd:"Ware hinzufügen", hList:"Warenliste", pasteToggle:"📋 Aus Excel einfügen (kopieren und hier einfügen)",
+    hCont:"Container-Typ", recTitle:"Planvorschläge", recRel:"Rel. Frachtkosten", recLCL:"Geringes Volumen — Sammelladung (LCL) erwägen", hAdd:"Ware hinzufügen", hList:"Warenliste", pasteToggle:"📋 Aus Excel einfügen (kopieren und hier einfügen)",
     pasteAdd:"Importieren", pasteCancel:"Abbrechen", pasteHint:"Ein Artikel pro Zeile: Name L B H Menge Gewicht Ebenen (Leerzeichen/Tab, cm und kg)",
     contInfo:(l,w,h,vol,p)=>"Innenmaß "+l+"×"+w+"×"+h+" cm ｜ Volumen "+vol+" m³ ｜ Max. Nutzlast "+(p/1000)+" t",
     stackHint:"Max. Stapel = wie viele Ebenen dieser Artikel gestapelt werden darf (einschließlich der unteren). Lithiumbatterien meist max. 3.",
@@ -628,7 +641,7 @@ const I18N = {
   fr: {
     title:"GuiManMan — Planificateur de chargement de conteneurs gratuit", app:"GuiManMan", free:"GRATUIT", sample:"Exemple", shot:"Exporter l'image",
     share:"Partager le lien", calc:"Calculer", importBtn:"Importer CSV/Excel", importBtnShort:"Importer un fichier",
-    hCont:"Type de conteneur", hAdd:"Ajouter du fret", hList:"Liste du fret", pasteToggle:"📋 Coller depuis Excel (copiez-collez ici)",
+    hCont:"Type de conteneur", recTitle:"Suggestions de plan", recRel:"Fret relatif", recLCL:"Petit volume — envisager le groupage (LCL)", hAdd:"Ajouter du fret", hList:"Liste du fret", pasteToggle:"📋 Coller depuis Excel (copiez-collez ici)",
     pasteAdd:"Importer", pasteCancel:"Annuler", pasteHint:"Un article par ligne : nom Long Larg Haut qté poids couches (espace/Tab, cm et kg)",
     contInfo:(l,w,h,vol,p)=>"Intérieur "+l+"×"+w+"×"+h+" cm ｜ Volume "+vol+" m³ ｜ Charge max. "+(p/1000)+" t",
     stackHint:"Couches max. = nombre de niveaux d'empilage autorisé pour cet article (fond inclus). Batteries lithium : généralement 3.",
@@ -711,7 +724,8 @@ function getContainer() {
 
 /* ============ 计算 ============ */
 function calc(silent) {
-  if (!goods.length) { toast(t().tNeedGoods); return; }
+  window.__calcRunning = true;
+  if (!goods.length) { window.__calcRunning = false; toast(t().tNeedGoods); return; }
   const c = { ...getContainer(),
     reeferLen: +document.getElementById("advReefer").value || 0,
     doorH: +document.getElementById("advDoor").value || 0 };
@@ -743,13 +757,66 @@ function calc(silent) {
       selectedBox = null;
       updateEditTools();
       updateUndoBtn();
+      scheduleRecommendations(packGoods); // 智能柜型推荐
       if (!silent) toast(t().tDone);
     } catch (e) {
       console.error(e);
       toast(t().tCalcErr + e.message);
     }
     showTip(null);
+    window.__calcRunning = false;
   }, 30);
+}
+
+/* 智能柜型推荐：各柜型逐一试算，按 柜数×相对运费系数 排序 */
+const FREIGHT_FACTOR = { "20GP": 1.0, "40GP": 1.6, "40HC": 1.7, "45HC": 1.9, "ULD-LD3": 0.35, "ULD-PMC": 1.2 };
+let recTimer = null;
+function scheduleRecommendations(packGoods) {
+  clearTimeout(recTimer);
+  recTimer = setTimeout(() => renderRecommendations(packGoods), 50);
+}
+function renderRecommendations(packGoods) {
+  const sec = document.getElementById("recSec");
+  if (!goods.length) { sec.style.display = "none"; return; }
+  sec.style.display = "block";
+  document.getElementById("recTitle").textContent = t().recTitle;
+  const list = document.getElementById("recList");
+  const gap = +document.getElementById("advGap").value || 0;
+  const rows = [];
+  const totalPieces = packGoods.reduce((s, g) => s + g.qty, 0);
+  for (const [k, cont] of Object.entries(CONTAINERS)) {
+    try {
+      const r = PackLib.packAll(packGoods, { ...cont, reeferLen: 0, doorH: 0 }, { gap });
+      const placedN = r.containers.reduce((s, c2) => s + c2.placed.length, 0);
+      const stuckPieces = r.stuck.reduce((s, p) => s + p.qty, 0);
+      const cap = cont.l * cont.w * cont.h;
+      const used = r.containers.reduce((s, c2) => s + c2.placed.reduce((x, p) => x + p.L * p.W * p.H, 0), 0);
+      rows.push({ type: k, n: r.containers.length, util: used / (r.containers.length * cap) * 100,
+        score: r.containers.length * (FREIGHT_FACTOR[k] || 1.7), unfit: placedN + stuckPieces < totalPieces });
+    } catch (e) { /* 跳过 */ }
+  }
+  rows.sort((a, b) => (a.unfit - b.unfit) || (a.score - b.score) || (b.util - a.util));
+  const best = rows.find(r => !r.unfit);
+  const totalVol = packGoods.reduce((s, g) => s + g.l * g.w * g.h * g.qty, 0) / 1e6;
+  const totalKg = packGoods.reduce((s, g) => s + g.kg * g.qty, 0);
+  const lcl = totalVol < 15 && totalKg < 10000;
+  list.innerHTML = rows.map(r =>
+    '<div class="rec-card' + (r === best ? ' best' : '') + (r.unfit ? ' unfit' : '') + '" data-type="' + r.type + '">' +
+    '<div><b>' + r.n + ' × ' + (t().contLabels[r.type] || r.type) + '</b></div>' +
+    '<span class="r-sub">' + r.util.toFixed(0) + '% ｜ ' + t().recRel + ' ' + (FREIGHT_FACTOR[r.type] || 1.7).toFixed(1) + '</span></div>').join("");
+  list.querySelectorAll(".rec-card").forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.type;
+      if (el.classList.contains("unfit")) return;
+      document.getElementById("containerSel").value = k;
+      updateContainerInfo();
+      calc(true);
+      toast("✅ " + (t().contLabels[k] || k));
+    };
+  });
+  const hint = document.getElementById("recLCLHint");
+  hint.style.display = lcl ? "block" : "none";
+  if (lcl) hint.textContent = "💡 " + t().recLCL;
 }
 
 function renderResults() {
@@ -973,6 +1040,7 @@ function applyI18n() {
   document.getElementById("btnImport").textContent = t().importBtn;
   document.getElementById("btnCalc").textContent = t().calc;
   document.getElementById("hCont").textContent = t().hCont;
+  document.getElementById("recTitle").textContent = t().recTitle;
   document.getElementById("hAdd").textContent = t().hAdd;
   document.getElementById("hList").textContent = t().hList;
   document.getElementById("lbL").textContent = t().lbL;

@@ -18,6 +18,10 @@ const chromium = (process.env.BROWSER === "webkit") ? pw.webkit : pw.chromium;
     if (cond) { pass++; console.log("  ✅ " + name + (detail ? "  " + detail : "")); }
     else { fail++; console.log("  ❌ " + name + (detail ? "  " + detail : "")); }
   };
+  const waitCalc = async () => {
+    try { await page.waitForFunction(() => window.__calcRunning === false, null, { timeout: 30000 }); } catch (e) {}
+    await page.waitForTimeout(150);
+  };
 
   await page.goto("http://127.0.0.1:8642/index.html", { waitUntil: "networkidle" });
 
@@ -90,6 +94,7 @@ const chromium = (process.env.BROWSER === "webkit") ? pw.webkit : pw.chromium;
   check("sitemap.xml + robots.txt 已生成", sm && rb, "");
 
   /* 3e. 粘贴文件名 → 智能指引；拖放文件 → 导入 */
+  const savedGoods3e = await page.evaluate(() => JSON.parse(JSON.stringify(goods)));
   await page.click("#btnPasteToggle");
   await page.fill("#pasteTa", "Packing List装箱单-B-UG - EEW20260207.xlsx");
   await page.click("#btnPasteAdd");
@@ -108,8 +113,9 @@ const chromium = (process.env.BROWSER === "webkit") ? pw.webkit : pw.chromium;
   await page.waitForTimeout(1200);
   const dropCount = await page.evaluate(() => goods.length);
   check("拖放文件导入", dropOk && dropCount >= 1, dropCount + " 项");
-  await page.evaluate(() => { goods = []; renderGoodsList(); });
-  await page.waitForTimeout(800);
+  await page.evaluate((g) => { goods = g; goodsSeq = g.length; renderGoodsList(); calc(true); document.getElementById("pasteBox").classList.remove("open"); }, savedGoods3e);
+  await page.waitForTimeout(1200);
+  await waitCalc();
 
   /* 4. 粘贴导入（模拟 Excel TSV） */
   await page.click("#btnPasteToggle");
@@ -151,6 +157,7 @@ const chromium = (process.env.BROWSER === "webkit") ? pw.webkit : pw.chromium;
   /* 8. 立放限制（勾选后添加 → 自动计算） */
   await page.evaluate(() => { document.getElementById("advGap").value = "0"; document.getElementById("advGap").dispatchEvent(new Event("input")); });
   await page.waitForTimeout(1200);
+  await waitCalc();
   await page.fill("#gName", "Drum");
   await page.fill("#gL", "60"); await page.fill("#gW", "40"); await page.fill("#gH", "80");
   await page.fill("#gQty", "50"); await page.fill("#gKg", "25");
@@ -195,6 +202,7 @@ const chromium = (process.env.BROWSER === "webkit") ? pw.webkit : pw.chromium;
   });
   await page.click("#btnCalc");
   await page.waitForTimeout(1500);
+  await waitCalc();
   const inBounds = await page.evaluate(() => {
     const placed = packResults.containers.flatMap(c => c.placed);
     return placed.every(p => p.x + p.L <= 400.5 && p.y + p.W <= 200.5 && p.z + p.H <= 200.5);
@@ -204,6 +212,7 @@ const chromium = (process.env.BROWSER === "webkit") ? pw.webkit : pw.chromium;
   /* 11b. 摆放间隙 */
   await page.evaluate(() => { document.getElementById("advGap").value = "5"; document.getElementById("advGap").dispatchEvent(new Event("input")); });
   await page.waitForTimeout(1500);
+  await waitCalc();
   const gapBox = await page.evaluate(() => {
     const placed = packResults.containers.flatMap(c => c.placed);
     const g = goods.find(x => x.name === "Cardbox");
@@ -217,10 +226,12 @@ const chromium = (process.env.BROWSER === "webkit") ? pw.webkit : pw.chromium;
   /* 11c. 打托模式 */
   await page.click("#palletChk");
   await page.waitForTimeout(1500);
+  await waitCalc();
   const pallets = await page.evaluate(() => packResults.containers.flatMap(c => c.placed).filter(p => /Pallet/.test(p.name)).length);
   check("打托模式生效（出现 Pallet 项）", pallets > 0, pallets + " 托");
   await page.click("#palletChk");
   await page.waitForTimeout(1200);
+  await waitCalc();
 
   /* 11d. 本地方案库 */
   page.on("dialog", d => d.accept("TestPlan"));
@@ -233,6 +244,7 @@ const chromium = (process.env.BROWSER === "webkit") ? pw.webkit : pw.chromium;
   check("刷新后方案库仍在", planOpts >= 1, String(planOpts));
   await page.selectOption("#planSel", "0");
   await page.waitForTimeout(1500);
+  await waitCalc();
   const loaded = await page.evaluate(() => goods.length);
   check("方案载入恢复货物", loaded === 6, String(loaded));
   await page.evaluate(() => localStorage.removeItem("zc_plans"));
@@ -307,6 +319,24 @@ const chromium = (process.env.BROWSER === "webkit") ? pw.webkit : pw.chromium;
   });
   check("菜单含装载步骤/PDF", menuCovers, "");
   await mobMenu.close();
+
+  /* 11g. 智能柜型推荐 */
+  await page.waitForTimeout(1200); // 推荐异步试算
+  const recCards = await page.evaluate(() => document.querySelectorAll("#recList .rec-card").length);
+  check("方案推荐卡片 ≥6（各柜型）", recCards >= 6, String(recCards));
+  const bestTxt = await page.evaluate(() => {
+    const el = document.querySelector("#recList .rec-card.best b");
+    return el ? el.textContent : "";
+  });
+  check("最优方案标星", bestTxt.length > 0, bestTxt);
+  // 点击推荐卡切换柜型
+  await page.click("#recList .rec-card.best");
+  await page.waitForTimeout(1500);
+  await waitCalc();
+  const switched = await page.evaluate(() => document.getElementById("containerSel").value);
+  check("点击推荐卡切换柜型并重算", switched !== "", switched);
+  await page.evaluate(() => { document.getElementById("containerSel").value = "40HC"; document.getElementById("containerSel").dispatchEvent(new Event("change")); });
+  await page.waitForTimeout(1000);
 
   /* 12. PDF 导出（stub window.open 验证调用） */
   await page.evaluate(() => { window.__pdfOpened = false; window.open = () => { window.__pdfOpened = true; return { document: { write() {}, close() {} }, print() {} }; }; });
