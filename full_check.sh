@@ -36,6 +36,8 @@ echo "=== 层5/6 全站走查（本地 → 线上）==="
 unset NODE_OPTIONS
 node walkthrough.js local 2>&1 | tail -2 | tee -a $RESULT
 node walkthrough.js live 2>&1 | tail -2 | tee -a $RESULT
+echo "--- 截图基线对比 ---" | tee -a $RESULT
+python3 compare_shots.py 2>&1 | head -8 | tee -a $RESULT
 
 echo ""
 echo "=== 层6/6 每日巡检（46 项）==="
