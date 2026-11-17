@@ -32,7 +32,76 @@ async function walkPage(page, url, name, base) {
   await page.goto(url, { waitUntil: "networkidle", timeout: 45000 });
   await page.waitForTimeout(400);
   await page.screenshot({ path: path.join(OUT, name + ".png") });
+  await checkOverlaps(page, name, url.includes("/seo/") ? 260 : undefined);
   return { errors, badRes, failed };
+}
+
+/* 布局重叠检测器：扫描顶级 UI 面板互相遮挡（顶栏重复/图例爆表类 bug 的自动捕获） */
+const UI_PANELS = ["header", "#annBar", ".sidebar", ".results", "#stepsPanel", "#legend",
+  "#editTools", "#toast", "#containerTabs", "#pdfPop", "#moreMenu", ".empty-tip",
+  "article", "footer"];
+function overlapCheckSrc() {
+  return () => {
+    const els = UI_PANELS_SRC.map(s2 => {
+      const el = document.querySelector(s2);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      const vis = !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+      return vis && r.width > 10 && r.height > 10 ? { s: s2, el, r } : null;
+    }).filter(Boolean);
+    const out = [];
+    for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) {
+      const A = els[i], B = els[j];
+      if (A.el.contains(B.el) || B.el.contains(A.el)) continue;
+      const ox = Math.min(A.r.right, B.r.right) - Math.max(A.r.left, B.r.left);
+      const oy = Math.min(A.r.bottom, B.r.bottom) - Math.max(A.r.top, B.r.top);
+      if (ox <= 0 || oy <= 0) continue;
+      const smaller = Math.min(A.r.width * A.r.height, B.r.width * B.r.height);
+      const ratio = (ox * oy) / smaller * 100;
+      if (ratio > 15) out.push(A.s + "×" + B.s + " " + Math.round(ratio) + "%");
+    }
+    const hdr = document.querySelector("header");
+    return { overlaps: out, headerH: hdr ? Math.round(hdr.getBoundingClientRect().height) : 0, vw: innerWidth };
+  };
+}
+const UI_PANELS_SRC = JSON.stringify(UI_PANELS);
+async function checkOverlaps(page, name, maxHeaderH) {
+  maxHeaderH = maxHeaderH || (name.startsWith("SEO") || name.startsWith("手机") ? 260 : 170);
+  const rr = await page.evaluate(function (UI_PANELS_SRC) {
+    const els = UI_PANELS_SRC.map(s2 => {
+      const el = document.querySelector(s2);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      const vis = !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+      return vis && r.width > 10 && r.height > 10 ? { s: s2, el, r } : null;
+    }).filter(Boolean);
+    const out = [];
+    for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) {
+      const A = els[i], B = els[j];
+      if (A.el.contains(B.el) || B.el.contains(A.el)) continue;
+      const ox = Math.min(A.r.right, B.r.right) - Math.max(A.r.left, B.r.left);
+      const oy = Math.min(A.r.bottom, B.r.bottom) - Math.max(A.r.top, B.r.top);
+      if (ox <= 0 || oy <= 0) continue;
+      const smaller = Math.min(A.r.width * A.r.height, B.r.width * B.r.height);
+      const ratio = (ox * oy) / smaller * 100;
+      if (ratio > 15) out.push(A.s + "\u00d7" + B.s + " " + Math.round(ratio) + "%");
+    }
+    const hdr = document.querySelector("header");
+    return { overlaps: out, headerH: hdr ? Math.round(hdr.getBoundingClientRect().height) : 0, vw: innerWidth };
+  }, UI_PANELS);
+  for (const o of rr.overlaps) {
+    const pct = parseInt(o.match(/(\d+)%$/)[1]);
+    if (pct > 60) {
+      fail++; issues.push("视觉重叠[" + name + "] " + o);
+      console.log("  \u274c 视觉重叠[" + name + "] " + o);
+    } else { warns++; console.log("  \u26a0\ufe0f 视觉重叠[" + name + "] " + o); }
+  }
+  if (rr.vw > 900 && rr.headerH > maxHeaderH) {
+    fail++; issues.push("顶栏异常[" + name + "] 高度 " + rr.headerH + "px");
+    console.log("  \u274c 顶栏异常[" + name + "] 高度 " + rr.headerH + "px");
+  } else if (rr.vw <= 900 && rr.headerH > maxHeaderH - 20) {
+    warns++; console.log("  \u26a0\ufe0f 顶栏偏高[" + name + "] " + rr.headerH + "px");
+  }
 }
 
 async function collectLinks(page) {
@@ -57,6 +126,10 @@ async function collectLinks(page) {
   const browser = await chromium.launch({ headless: true, args: process.env.BROWSER === "webkit" ? ["--no-sandbox"] : [], executablePath: process.env.BROWSER === "webkit" ? undefined : EXE });
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
+  const waitCalc = async () => {
+    try { await page.waitForFunction(() => window.__calcRunning === false, null, { timeout: 30000 }); } catch (e) {}
+    await page.waitForTimeout(150);
+  };
   const allLinks = new Set();
 
   console.log(`\n===== 全站走查（${mode}）=====\n—— 逐页渲染（25 页）——`);
@@ -84,12 +157,29 @@ async function collectLinks(page) {
     check("ULD 切换正常", await page.evaluate(() => packResults.containers.every(c => c.placed.every(p => p.x + p.L <= 202 && p.y + p.W <= 154 && p.z + p.H <= 161))), "");
     await page.evaluate(() => { document.getElementById("containerSel").value = "40HC"; document.getElementById("containerSel").dispatchEvent(new Event("change")); });
     await page.waitForTimeout(1000);
+    // 大货量图例回归：成捆模式下图例不得铺满画布
+    await page.evaluate(() => {
+      goods = [
+        { name: "背胶型橡塑铝箔隔热棉", l: 60, w: 30, h: 30, qty: 3812, kg: 2.45, stack: 20, color: "#3b82f6" },
+        { name: "背胶型橡塑铝箔隔热棉 B", l: 60, w: 30, h: 30, qty: 1028, kg: 2.45, stack: 20, color: "#f59e0b" },
+      ];
+      goodsSeq = 2;
+      renderGoodsList();
+      calc(true);
+    });
+    await waitCalc();
+    await page.waitForTimeout(400);
+    const legendRows = await page.evaluate(() => document.querySelectorAll("#legend div").length);
+    check("大货量图例 ≤ 7 行（回归守卫）", legendRows <= 7, legendRows + " 行");
+    await checkOverlaps(page, "大货量图例");
+    await page.evaluate(() => { goods = []; renderGoodsList(); });
     // 链接收集
     (await collectLinks(page)).forEach(l => allLinks.add(l.href));
     // 手机端
     const mob = await ctx.newPage();
     await mob.setViewportSize({ width: 390, height: 844 });
     await mob.goto(base + "/", { waitUntil: "networkidle" });
+    await checkOverlaps(mob, "手机端默认态");
     await mob.click("#btnMore"); await mob.waitForTimeout(250);
     check("手机端 ⚙ 菜单展开", await mob.evaluate(() => document.getElementById("moreMenu").classList.contains("open")), "");
     await mob.screenshot({ path: path.join(OUT, "app-mobile-menu.png") });
@@ -108,6 +198,7 @@ async function collectLinks(page) {
     const cta = await page.getAttribute(".cta", "href").catch(() => null);
     check(name + " CTA 存在", !!cta, cta || "");
     (await collectLinks(page)).forEach(l2 => allLinks.add(l2.href));
+    await checkOverlaps(page, "SEO " + l);
     console.log("  📸 seo-" + l + ".png");
   }
 
